@@ -93,6 +93,7 @@ local AvailableKeys = {
     {Name = "MOUSE1", Key = Enum.UserInputType.MouseButton1},
     {Name = "MOUSE2", Key = Enum.UserInputType.MouseButton2},
     {Name = "MOUSE3", Key = Enum.UserInputType.MouseButton3},
+    {Name = "MOUSE5", Key = Enum.UserInputType.MouseButton5},
     
     -- F Keys
     {Name = "F1", Key = Enum.KeyCode.F1},
