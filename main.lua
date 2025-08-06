@@ -14,10 +14,12 @@ local settings = {
     DrawFOV = true,
     FOVRadius = 150,
     AimPart = "Head",
-    MaxDistance = 300,
-    Smoothness = 0.15,
-    WallCheck = true,
-    TeamCheck = true
+    MaxDistance = 500,
+    Smoothness = 0.25,
+    WallCheck = false, -- Desabilitado por padrão para puxar através da parede
+    TeamCheck = true,
+    Prediction = 0.1, -- Predição de movimento
+    AimStrength = 1.0 -- Força do aimbot
 }
 
 -- ESTADO
@@ -311,6 +313,64 @@ local function createDropdown(labelText, options, default, callback)
     return container
 end
 
+-- Função para criar keybind
+local function createKeybind(labelText, currentKey, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 70)
+    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    container.BorderSizePixel = 0
+    container.Parent = scrollFrame
+    
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 6)
+    containerCorner.Parent = container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 0, 25)
+    label.Position = UDim2.new(0, 10, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = labelText .. ": " .. currentKey.Name
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -20, 0, 30)
+    button.Position = UDim2.new(0, 10, 0, 30)
+    button.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    button.Text = "Clique para alterar"
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextScaled = true
+    button.Font = Enum.Font.GothamBold
+    button.BorderSizePixel = 0
+    button.Parent = container
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 4)
+    buttonCorner.Parent = button
+    
+    button.MouseButton1Click:Connect(function()
+        button.Text = "Pressione uma tecla..."
+        button.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+        
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                settings.AimKey = input.KeyCode
+                label.Text = labelText .. ": " .. input.KeyCode.Name
+                button.Text = "Clique para alterar"
+                button.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+                conn:Disconnect()
+                callback(input.KeyCode)
+            end
+        end)
+    end)
+    
+    return container
+end
+
 -- Função para criar sliders
 local function createSlider(labelText, minVal, maxVal, defaultVal, callback)
     local container = Instance.new("Frame")
@@ -417,17 +477,30 @@ createDropdown("Parte do Corpo", {"Head", "Torso", "HumanoidRootPart"}, settings
     settings.AimPart = val
 end)
 
-createSlider("Raio FOV", 50, 300, settings.FOVRadius, function(val)
+createKeybind("Tecla do Aimbot", settings.AimKey, function(val)
+    settings.AimKey = val
+    print("Nova tecla do aimbot:", val.Name)
+end)
+
+createSlider("Raio FOV", 50, 500, settings.FOVRadius, function(val)
     settings.FOVRadius = val
     fovCircle.Size = UDim2.new(0, val * 2, 0, val * 2)
 end)
 
-createSlider("Suavidade", 1, 20, math.floor(settings.Smoothness * 100), function(val)
+createSlider("Suavidade", 1, 50, math.floor(settings.Smoothness * 100), function(val)
     settings.Smoothness = val / 100
 end)
 
-createSlider("Distância Máxima", 100, 1000, settings.MaxDistance, function(val)
+createSlider("Distância Máxima", 100, 2000, settings.MaxDistance, function(val)
     settings.MaxDistance = val
+end)
+
+createSlider("Força do Aimbot", 10, 100, math.floor(settings.AimStrength * 100), function(val)
+    settings.AimStrength = val / 100
+end)
+
+createSlider("Predição", 0, 50, math.floor(settings.Prediction * 100), function(val)
+    settings.Prediction = val / 100
 end)
 
 createToggle("Verificar Parede", settings.WallCheck, function(val)
@@ -511,7 +584,7 @@ end)
 
 print("Sistema de botões configurado")
 
--- Lógica do aimbot
+-- Lógica do aimbot melhorada e mais agressiva
 local function getClosestTarget()
     if not localPlayer.Parent or not camera or not camera.Parent then
         return nil
@@ -519,44 +592,74 @@ local function getClosestTarget()
     
     local closest = nil
     local shortestDistance = math.huge
+    local mousePos = Vector2.new()
     
-    local success, mousePos = pcall(function()
-        return UserInputService:GetMouseLocation()
+    -- Tentar obter posição do mouse com fallback
+    local success = pcall(function()
+        mousePos = UserInputService:GetMouseLocation()
     end)
     
-    if not success then return nil end
+    if not success then
+        mousePos = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+    end
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= localPlayer and player.Character and player.Character:FindFirstChild(settings.AimPart) then
-            if settings.TeamCheck and player.Team == localPlayer.Team then
+            -- Verificação de time (opcional)
+            if settings.TeamCheck and player.Team and localPlayer.Team and player.Team == localPlayer.Team then
                 continue
             end
             
             local part = player.Character[settings.AimPart]
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            -- Predição de movimento
+            local targetPosition = part.Position
+            if settings.Prediction > 0 and humanoidRootPart and humanoidRootPart.Velocity then
+                targetPosition = part.Position + (humanoidRootPart.Velocity * settings.Prediction)
+            end
+            
             local success2, screenPos, onScreen = pcall(function()
-                return camera:WorldToViewportPoint(part.Position)
+                return camera:WorldToViewportPoint(targetPosition)
             end)
             
-            if not success2 or not onScreen then continue end
+            if not success2 then continue end
             
-            local distance = (camera.CFrame.Position - part.Position).Magnitude
+            -- Verificar distância 3D
+            local distance = (camera.CFrame.Position - targetPosition).Magnitude
             if distance > settings.MaxDistance then continue end
             
+            -- Verificar se está dentro do FOV
             local distToMouse = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
             if distToMouse > settings.FOVRadius then continue end
             
+            -- Verificação de parede (apenas se habilitada)
             if settings.WallCheck then
-                local success3, ray = pcall(function()
-                    return workspace:Raycast(camera.CFrame.Position, part.Position - camera.CFrame.Position)
+                local rayDirection = (targetPosition - camera.CFrame.Position)
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+                
+                local success3, rayResult = pcall(function()
+                    return workspace:Raycast(camera.CFrame.Position, rayDirection, raycastParams)
                 end)
                 
-                if success3 and ray and not ray.Instance:IsDescendantOf(player.Character) then
-                    continue
+                if success3 and rayResult then
+                    local hitPart = rayResult.Instance
+                    if not hitPart:IsDescendantOf(player.Character) then
+                        continue
+                    end
                 end
             end
             
+            -- Priorizar por distância do mouse (mais preciso)
             if distToMouse < shortestDistance then
-                closest = part
+                closest = {
+                    part = part,
+                    position = targetPosition,
+                    distance = distance,
+                    screenDistance = distToMouse
+                }
                 shortestDistance = distToMouse
             end
         end
@@ -565,8 +668,8 @@ local function getClosestTarget()
     return closest
 end
 
--- Loop principal
-connections[#connections + 1] = RunService.RenderStepped:Connect(function()
+-- Loop principal melhorado
+connections[#connections + 1] = RunService.Heartbeat:Connect(function()
     if not screenGui or not screenGui.Parent or not localPlayer.Parent then
         cleanup()
         return
@@ -586,6 +689,11 @@ connections[#connections + 1] = RunService.RenderStepped:Connect(function()
         if success then
             fovCircle.Position = UDim2.new(0, mousePos.X - settings.FOVRadius, 0, mousePos.Y - settings.FOVRadius)
             fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
+        else
+            -- Fallback para centro da tela
+            local centerX = camera.ViewportSize.X / 2
+            local centerY = camera.ViewportSize.Y / 2
+            fovCircle.Position = UDim2.new(0, centerX - settings.FOVRadius, 0, centerY - settings.FOVRadius)
         end
     end
     
@@ -595,43 +703,78 @@ connections[#connections + 1] = RunService.RenderStepped:Connect(function()
         shouldAim = true
     elseif settings.AimMode == "Hold" then
         local success = pcall(function()
-            shouldAim = UserInputService:IsKeyDown(settings.AimKey)
+            return UserInputService:IsKeyDown(settings.AimKey)
         end)
-        if not success then shouldAim = false end
+        shouldAim = success and UserInputService:IsKeyDown(settings.AimKey)
     elseif settings.AimMode == "Toggle" then
         shouldAim = toggled
     end
     
-    -- Aplicar aimbot
+    -- Aplicar aimbot com força melhorada
     if shouldAim then
-        local target = getClosestTarget()
-        if target and camera and camera.Parent then
+        local targetData = getClosestTarget()
+        if targetData and camera and camera.Parent then
             local success = pcall(function()
-                local direction = (target.Position - camera.CFrame.Position).Unit
-                local newLook = camera.CFrame.LookVector:Lerp(direction, settings.Smoothness)
-                camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + newLook)
+                local targetPosition = targetData.position
+                local currentCFrame = camera.CFrame
+                
+                -- Calcular direção para o alvo
+                local direction = (targetPosition - currentCFrame.Position).Unit
+                
+                -- Aplicar suavização e força
+                local currentLook = currentCFrame.LookVector
+                local lerpedDirection = currentLook:Lerp(direction, settings.Smoothness * settings.AimStrength)
+                
+                -- Aplicar nova rotação da câmera
+                local newCFrame = CFrame.lookAt(currentCFrame.Position, currentCFrame.Position + lerpedDirection)
+                camera.CFrame = newCFrame
             end)
             
             if success and fovStroke and fovStroke.Parent then
-                fovStroke.Color = Color3.fromRGB(255, 100, 100)
+                -- Indicador visual - vermelho quando mirando
+                fovStroke.Color = Color3.fromRGB(255, 50, 50)
+                fovStroke.Thickness = 3
             end
         elseif fovStroke and fovStroke.Parent then
+            -- Cor normal quando não há alvo
             fovStroke.Color = Color3.fromRGB(0, 255, 255)
+            fovStroke.Thickness = 2
         end
     elseif fovStroke and fovStroke.Parent then
+        -- Cor padrão quando não está mirando
         fovStroke.Color = Color3.fromRGB(0, 255, 255)
+        fovStroke.Thickness = 2
     end
 end)
 
--- Input para Toggle
+-- Input para Toggle melhorado
 connections[#connections + 1] = UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if not localPlayer.Parent or not screenGui or not screenGui.Parent then
         return
     end
     
-    if input.KeyCode == settings.AimKey and settings.AimMode == "Toggle" then
-        toggled = not toggled
+    -- Debug para verificar tecla pressionada
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        print("Tecla pressionada:", input.KeyCode.Name, "| Tecla do aimbot:", settings.AimKey.Name)
+        
+        if input.KeyCode == settings.AimKey and settings.AimMode == "Toggle" then
+            toggled = not toggled
+            print("Aimbot toggled:", toggled)
+            
+            -- Feedback visual do toggle
+            if fovStroke and fovStroke.Parent then
+                if toggled then
+                    fovStroke.Color = Color3.fromRGB(0, 255, 0)
+                    task.wait(0.2)
+                    fovStroke.Color = Color3.fromRGB(0, 255, 255)
+                else
+                    fovStroke.Color = Color3.fromRGB(255, 0, 0)
+                    task.wait(0.2)
+                    fovStroke.Color = Color3.fromRGB(0, 255, 255)
+                end
+            end
+        end
     end
 end)
 
