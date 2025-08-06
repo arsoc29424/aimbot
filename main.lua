@@ -10,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- CONFIGURAÇÕES DO SISTEMA
+-- CONFIGURAÇÕES DO SISTEM
 local AimSettings = {
     -- Controles
     AimKey = Enum.KeyCode.E,
