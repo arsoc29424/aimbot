@@ -48,7 +48,7 @@ screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 print("GUI criada e adicionada ao PlayerGui")
 
--- Círculo do FOV
+-- Círculo do FOV centralizado
 local fovCircle = Instance.new("Frame")
 fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
 fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
@@ -484,7 +484,11 @@ end)
 
 createSlider("Raio FOV", 50, 500, settings.FOVRadius, function(val)
     settings.FOVRadius = val
-    fovCircle.Size = UDim2.new(0, val * 2, 0, val * 2)
+    -- Atualizar círculo FOV mantendo centralizado
+    if fovCircle then
+        fovCircle.Size = UDim2.new(0, val * 2, 0, val * 2)
+        fovCircle.Position = UDim2.new(0.5, -val, 0.5, -val)
+    end
 end)
 
 createSlider("Suavidade", 1, 50, math.floor(settings.Smoothness * 100), function(val)
@@ -592,16 +596,11 @@ local function getClosestTarget()
     
     local closest = nil
     local shortestDistance = math.huge
-    local mousePos = Vector2.new()
     
-    -- Tentar obter posição do mouse com fallback
-    local success = pcall(function()
-        mousePos = UserInputService:GetMouseLocation()
-    end)
-    
-    if not success then
-        mousePos = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-    end
+    -- Centro absoluto da tela
+    local centerX = camera.ViewportSize.X / 2
+    local centerY = camera.ViewportSize.Y / 2
+    local screenCenter = Vector2.new(centerX, centerY)
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= localPlayer and player.Character and player.Character:FindFirstChild(settings.AimPart) then
@@ -629,9 +628,9 @@ local function getClosestTarget()
             local distance = (camera.CFrame.Position - targetPosition).Magnitude
             if distance > settings.MaxDistance then continue end
             
-            -- Verificar se está dentro do FOV
-            local distToMouse = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-            if distToMouse > settings.FOVRadius then continue end
+            -- Verificar se está dentro do FOV (distância do centro da tela)
+            local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+            if distToCenter > settings.FOVRadius then continue end
             
             -- Verificação de parede (apenas se habilitada)
             if settings.WallCheck then
@@ -652,15 +651,15 @@ local function getClosestTarget()
                 end
             end
             
-            -- Priorizar por distância do mouse (mais preciso)
-            if distToMouse < shortestDistance then
+            -- Priorizar por distância do centro da tela (mais preciso)
+            if distToCenter < shortestDistance then
                 closest = {
                     part = part,
                     position = targetPosition,
                     distance = distance,
-                    screenDistance = distToMouse
+                    screenDistance = distToCenter
                 }
-                shortestDistance = distToMouse
+                shortestDistance = distToCenter
             end
         end
     end
@@ -680,21 +679,11 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
         if not camera then return end
     end
     
-    -- Atualizar FOV
+    -- Atualizar FOV (sempre centralizado)
     if settings.DrawFOV and fovCircle and fovCircle.Parent then
-        local success, mousePos = pcall(function()
-            return UserInputService:GetMouseLocation()
-        end)
-        
-        if success then
-            fovCircle.Position = UDim2.new(0, mousePos.X - settings.FOVRadius, 0, mousePos.Y - settings.FOVRadius)
-            fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
-        else
-            -- Fallback para centro da tela
-            local centerX = camera.ViewportSize.X / 2
-            local centerY = camera.ViewportSize.Y / 2
-            fovCircle.Position = UDim2.new(0, centerX - settings.FOVRadius, 0, centerY - settings.FOVRadius)
-        end
+        -- Manter círculo sempre no centro da tela
+        fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
+        fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
     end
     
     -- Determinar se deve mirar
