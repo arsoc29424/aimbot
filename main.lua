@@ -80,7 +80,7 @@ local AvailableKeys = {
     {Name = "X", Key = Enum.KeyCode.X},
     {Name = "Y", Key = Enum.KeyCode.Y},
     {Name = "Z", Key = Enum.KeyCode.Z},
-
+    
     -- Teclas especiais
     {Name = "SHIFT", Key = Enum.KeyCode.LeftShift},
     {Name = "CTRL", Key = Enum.KeyCode.LeftControl},
@@ -88,12 +88,12 @@ local AvailableKeys = {
     {Name = "TAB", Key = Enum.KeyCode.Tab},
     {Name = "CAPS", Key = Enum.KeyCode.CapsLock},
     {Name = "SPACE", Key = Enum.KeyCode.Space},
-
+    
     -- Mouse
     {Name = "MOUSE1", Key = Enum.UserInputType.MouseButton1},
     {Name = "MOUSE2", Key = Enum.UserInputType.MouseButton2},
     {Name = "MOUSE3", Key = Enum.UserInputType.MouseButton3},
-
+    
     -- F Keys
     {Name = "F1", Key = Enum.KeyCode.F1},
     {Name = "F2", Key = Enum.KeyCode.F2},
@@ -108,7 +108,6 @@ local AvailableKeys = {
     {Name = "F11", Key = Enum.KeyCode.F11},
     {Name = "F12", Key = Enum.KeyCode.F12}
 }
-
 
 -- ESTADO DO SISTEMA
 local SystemState = {
