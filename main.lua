@@ -30,6 +30,7 @@ local AimSettings = {
     Smoothness = 0.25,
     AimStrength = 1.0,
     Prediction = 0.1,
+    BulletSpeed = 1000, -- Nova configuração para velocidade da bala
     
     -- Filtros
     WallCheck = false,
@@ -59,7 +60,8 @@ local AimSettings = {
     BulletTrajectory = {
         Enabled = false,
         ForceStraight = false,
-        GravityOverride = 0
+        GravityOverride = 0,
+        AccuratePrediction = true -- Nova configuração para predição precisa
     }
 }
 
@@ -301,7 +303,7 @@ local function updateESP()
         if espData.box and head then
             local success2, headPos, headOnScreen = pcall(function()
                 return camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-            end)
+            end
             
             if success2 and headOnScreen then
                 local headPos2D = Vector2.new(headPos.X, headPos.Y)
@@ -350,6 +352,39 @@ local function validateEnvironment()
     return true
 end
 
+-- FUNÇÃO DE PREDIÇÃO MELHORADA
+local function calculatePredictedPosition(targetPart, distance)
+    if not AimSettings.BulletTrajectory.AccuratePrediction then
+        -- Predição simples baseada apenas na velocidade
+        local humanoidRootPart = targetPart.Parent:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart and humanoidRootPart.Velocity then
+            return targetPart.Position + (humanoidRootPart.Velocity * AimSettings.Prediction)
+        end
+        return targetPart.Position
+    else
+        -- Predição precisa baseada na velocidade da bala e do alvo
+        local humanoidRootPart = targetPart.Parent:FindFirstChild("HumanoidRootPart")
+        if not humanoidRootPart or not humanoidRootPart.Velocity then
+            return targetPart.Position
+        end
+        
+        -- Calcular tempo de voo da bala
+        local bulletSpeed = AimSettings.BulletSpeed > 0 and AimSettings.BulletSpeed or 1000
+        local timeToTarget = distance / bulletSpeed
+        
+        -- Calcular posição futura do alvo
+        local predictedPosition = targetPart.Position + (humanoidRootPart.Velocity * timeToTarget)
+        
+        -- Ajustar para gravidade se necessário
+        if not AimSettings.BulletTrajectory.ForceStraight and AimSettings.BulletTrajectory.GravityOverride ~= 0 then
+            local gravity = AimSettings.BulletTrajectory.GravityOverride
+            predictedPosition = predictedPosition + Vector3.new(0, 0.5 * gravity * timeToTarget^2, 0)
+        end
+        
+        return predictedPosition
+    end
+end
+
 -- FUNÇÃO DE TARGETING OTIMIZADA
 local function getOptimalTarget()
     if not validateEnvironment() then return nil end
@@ -369,19 +404,14 @@ local function getOptimalTarget()
                 continue
             end
             
-            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            
-            -- Calcular posição com predição
-            local targetPosition = targetPart.Position
-            if AimSettings.Prediction > 0 and humanoidRootPart and humanoidRootPart.Velocity then
-                targetPosition = targetPosition + (humanoidRootPart.Velocity * AimSettings.Prediction)
-            end
-            
             -- Verificar distância 3D
-            local distance3D = (camera.CFrame.Position - targetPosition).Magnitude
+            local distance3D = (camera.CFrame.Position - targetPart.Position).Magnitude
             if distance3D > AimSettings.MaxDistance or distance3D < AimSettings.MinDistance then
                 continue
             end
+            
+            -- Calcular posição com predição
+            local targetPosition = calculatePredictedPosition(targetPart, distance3D)
             
             -- Projetar para tela
             local success, screenPos, onScreen = pcall(function()
@@ -1214,6 +1244,16 @@ local function createAdvancedGUI()
         print("[BulletTrajectory] Gravidade definida para:", AimSettings.BulletTrajectory.GravityOverride)
     end)
     
+    -- Nova configuração para velocidade da bala
+    createSlider(aimTab, "Velocidade da Bala", 100, 5000, AimSettings.BulletSpeed, function(val)
+        AimSettings.BulletSpeed = val
+    end)
+    
+    -- Nova configuração para predição precisa
+    createToggle(aimTab, "Predição Precisão", AimSettings.BulletTrajectory.AccuratePrediction, function(val)
+        AimSettings.BulletTrajectory.AccuratePrediction = val
+    end)
+    
     -- TAB ESP
     createSection(espTab, "👁️ CONFIGURAÇÕES DO ESP")
     
@@ -1621,6 +1661,16 @@ function AdvancedAPI:SetBulletGravity(gravity)
     print("[API] Gravidade da bala:", AimSettings.BulletTrajectory.GravityOverride)
 end
 
+function AdvancedAPI:SetBulletSpeed(speed)
+    AimSettings.BulletSpeed = math.clamp(speed, 100, 5000)
+    print("[API] Velocidade da bala:", AimSettings.BulletSpeed)
+end
+
+function AdvancedAPI:ToggleAccuratePrediction(enabled)
+    AimSettings.BulletTrajectory.AccuratePrediction = enabled
+    print("[API] Predição precisa:", enabled and "Ativada" or "Desativada")
+end
+
 function AdvancedAPI:GetCurrentTarget()
     return SystemState.currentTarget
 end
@@ -1648,6 +1698,8 @@ function AdvancedAPI:PrintCommands()
     print("_G.AdvancedAPI:ToggleESP(true) -- Ativar/Desativar ESP")
     print("_G.AdvancedAPI:ToggleNoRecoil(true) -- Ativar/Desativar No Recoil")
     print("_G.AdvancedAPI:ToggleStraightBullet(true) -- Ativar/Desativar trajetória reta")
+    print("_G.AdvancedAPI:SetBulletSpeed(1500) -- Definir velocidade da bala")
+    print("_G.AdvancedAPI:ToggleAccuratePrediction(true) -- Ativar/Desativar predição precisa")
     print("_G.AdvancedAPI:GetCurrentTarget() -- Ver alvo atual")
     print("_G.AdvancedAPI:GetSettings() -- Ver todas configurações")
     print("_G.AdvancedAPI:Shutdown() -- Fechar sistema")
@@ -1671,6 +1723,8 @@ if initializeSystem() then
     print("   • Distância máxima:", AimSettings.MaxDistance)
     print("   • No Recoil:", AimSettings.NoRecoil.Enabled and "Ativado" or "Desativado")
     print("   • Trajetória reta:", AimSettings.BulletTrajectory.ForceStraight and "Ativada" or "Desativada")
+    print("   • Velocidade da bala:", AimSettings.BulletSpeed)
+    print("   • Predição precisa:", AimSettings.BulletTrajectory.AccuratePrediction and "Ativada" or "Desativada")
     print("===========================================")
     
     -- Comandos de teste automático
