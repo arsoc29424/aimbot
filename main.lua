@@ -1,5 +1,3 @@
-nesse codigo aq, preciso que a bala seja certeira, pq tem algumas pessoas que ficam andando e o tiro n pega pq como a pessoa anda o tiro vai atras da pessoa e nn nela
-
 -- LocalScript: AdvancedAimSystemWithESP.lua
 -- Sistema completo de Auto-Aim com GUI elaborada, ESP, No Recoil e Trajetória Reta
 
