@@ -1684,5 +1684,3 @@ else
 end
 
 return AdvancedAPI
-
-e manda o codigo todo linha por linha quando terminar
