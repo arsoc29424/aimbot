@@ -7,6 +7,9 @@ local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
+-- Configuração especial para BlueStacks
+local BLUESTACKS_OFFSET = Vector2.new(0, 0)  -- Ajuste esses valores se necessário
+
 -- CONFIGURAÇÕES PADRÃO
 local settings = {
     AimKey = Enum.KeyCode.E,
@@ -48,15 +51,23 @@ screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 print("GUI criada e adicionada ao PlayerGui")
 
+-- Função para atualizar a posição do FOV centralizado
+local function updateFOVPosition()
+    if not camera then return end
+    fovCircle.Position = UDim2.new(0.5, BLUESTACKS_OFFSET.X, 0.5, BLUESTACKS_OFFSET.Y)
+end
+
 -- Círculo do FOV centralizado
 local fovCircle = Instance.new("Frame")
 fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
-fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
 fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 fovCircle.BackgroundTransparency = 1
 fovCircle.BorderSizePixel = 0
 fovCircle.Visible = settings.DrawFOV
 fovCircle.Parent = screenGui
+
+-- Posiciona inicialmente e conecta para atualizar quando a tela mudar
+updateFOVPosition()
 
 local fovStroke = Instance.new("UIStroke")
 fovStroke.Color = Color3.fromRGB(0, 255, 255)
@@ -67,6 +78,20 @@ fovStroke.Parent = fovCircle
 local fovCorner = Instance.new("UICorner")
 fovCorner.CornerRadius = UDim.new(1, 0)
 fovCorner.Parent = fovCircle
+
+-- Marcador visual do centro real (para debug)
+local centerMarker = Instance.new("Frame")
+centerMarker.Size = UDim2.new(0, 6, 0, 6)
+centerMarker.AnchorPoint = Vector2.new(0.5, 0.5)
+centerMarker.Position = UDim2.new(0.5, BLUESTACKS_OFFSET.X, 0.5, BLUESTACKS_OFFSET.Y)
+centerMarker.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+centerMarker.BorderSizePixel = 0
+centerMarker.Visible = false -- Defina como true para debug
+centerMarker.Parent = screenGui
+
+local centerCorner = Instance.new("UICorner")
+centerCorner.CornerRadius = UDim.new(1, 0)
+centerCorner.Parent = centerMarker
 
 -- GUI Principal
 local mainFrame = Instance.new("Frame")
@@ -487,7 +512,7 @@ createSlider("Raio FOV", 50, 500, settings.FOVRadius, function(val)
     -- Atualizar círculo FOV mantendo centralizado
     if fovCircle then
         fovCircle.Size = UDim2.new(0, val * 2, 0, val * 2)
-        fovCircle.Position = UDim2.new(0.5, -val, 0.5, -val)
+        updateFOVPosition()
     end
 end)
 
@@ -681,9 +706,14 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
     
     -- Atualizar FOV (sempre centralizado)
     if settings.DrawFOV and fovCircle and fovCircle.Parent then
-        -- Manter círculo sempre no centro da tela
-        fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
+        -- Garantir tamanho correto
         fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
+        
+        -- Atualizar posição central
+        updateFOVPosition()
+        
+        -- Atualizar marcador de centro
+        centerMarker.Position = UDim2.new(0.5, BLUESTACKS_OFFSET.X, 0.5, BLUESTACKS_OFFSET.Y)
     end
     
     -- Determinar se deve mirar
@@ -734,6 +764,11 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
         fovStroke.Color = Color3.fromRGB(0, 255, 255)
         fovStroke.Thickness = 2
     end
+end)
+
+-- Conectar a mudanças no viewport
+connections[#connections + 1] = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    updateFOVPosition()
 end)
 
 -- Input para Toggle melhorado
