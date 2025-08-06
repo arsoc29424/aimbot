@@ -7,9 +7,6 @@ local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- Configuração especial para BlueStacks
-local BLUESTACKS_OFFSET = Vector2.new(0, 0)  -- Ajuste esses valores se necessário
-
 -- CONFIGURAÇÕES PADRÃO
 local settings = {
     AimKey = Enum.KeyCode.E,
@@ -51,23 +48,15 @@ screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 print("GUI criada e adicionada ao PlayerGui")
 
--- Função para atualizar a posição do FOV centralizado
-local function updateFOVPosition()
-    if not camera then return end
-    fovCircle.Position = UDim2.new(0.5, BLUESTACKS_OFFSET.X, 0.5, BLUESTACKS_OFFSET.Y)
-end
-
 -- Círculo do FOV centralizado
 local fovCircle = Instance.new("Frame")
 fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
+fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
 fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 fovCircle.BackgroundTransparency = 1
 fovCircle.BorderSizePixel = 0
 fovCircle.Visible = settings.DrawFOV
 fovCircle.Parent = screenGui
-
--- Posiciona inicialmente e conecta para atualizar quando a tela mudar
-updateFOVPosition()
 
 local fovStroke = Instance.new("UIStroke")
 fovStroke.Color = Color3.fromRGB(0, 255, 255)
@@ -78,20 +67,6 @@ fovStroke.Parent = fovCircle
 local fovCorner = Instance.new("UICorner")
 fovCorner.CornerRadius = UDim.new(1, 0)
 fovCorner.Parent = fovCircle
-
--- Marcador visual do centro real (para debug)
-local centerMarker = Instance.new("Frame")
-centerMarker.Size = UDim2.new(0, 6, 0, 6)
-centerMarker.AnchorPoint = Vector2.new(0.5, 0.5)
-centerMarker.Position = UDim2.new(0.5, BLUESTACKS_OFFSET.X, 0.5, BLUESTACKS_OFFSET.Y)
-centerMarker.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-centerMarker.BorderSizePixel = 0
-centerMarker.Visible = false -- Defina como true para debug
-centerMarker.Parent = screenGui
-
-local centerCorner = Instance.new("UICorner")
-centerCorner.CornerRadius = UDim.new(1, 0)
-centerCorner.Parent = centerMarker
 
 -- GUI Principal
 local mainFrame = Instance.new("Frame")
@@ -226,7 +201,7 @@ local function createToggle(labelText, defaultState, callback)
     
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.Parent = container
+    containerCorner.PParent = container
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -80, 1, 0)
@@ -352,7 +327,7 @@ local function createKeybind(labelText, currentKey, callback)
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -10, 0, 25)
-    label.Position = UDim2.new(0, 10, 0, 5)
+    label.PPosition = UDim2.new(0, 10, 0, 5)
     label.BackgroundTransparency = 1
     label.Text = labelText .. ": " .. currentKey.Name
     label.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -439,7 +414,7 @@ local function createSlider(labelText, minVal, maxVal, defaultVal, callback)
     
     local sliderBgCorner = Instance.new("UICorner")
     sliderBgCorner.CornerRadius = UDim.new(1, 0)
-    sliderBgCorner.Parent = sliderBg
+    sliderBgCorner.PParent = sliderBg
     
     local sliderFill = Instance.new("Frame")
     sliderFill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
@@ -509,10 +484,9 @@ end)
 
 createSlider("Raio FOV", 50, 500, settings.FOVRadius, function(val)
     settings.FOVRadius = val
-    -- Atualizar círculo FOV mantendo centralizado
     if fovCircle then
         fovCircle.Size = UDim2.new(0, val * 2, 0, val * 2)
-        updateFOVPosition()
+        fovCircle.Position = UDim2.new(0.5, -val, 0.5, -val)
     end
 end)
 
@@ -665,7 +639,7 @@ local function getClosestTarget()
                 raycastParams.FilterDescendantsInstances = {localPlayer.Character}
                 
                 local success3, rayResult = pcall(function()
-                    return workspace:Raycast(camera.CFrame.Position, rayDirection, raycastParams)
+                    return workspace:Raycast(camera.CFrame.PPosition, rayDirection, raycastParams)
                 end)
                 
                 if success3 and rayResult then
@@ -706,14 +680,9 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
     
     -- Atualizar FOV (sempre centralizado)
     if settings.DrawFOV and fovCircle and fovCircle.Parent then
-        -- Garantir tamanho correto
+        -- Manter círculo sempre no centro da tela (removida a atualização baseada no mouse)
+        fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
         fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
-        
-        -- Atualizar posição central
-        updateFOVPosition()
-        
-        -- Atualizar marcador de centro
-        centerMarker.Position = UDim2.new(0.5, BLUESTACKS_OFFSET.X, 0.5, BLUESTACKS_OFFSET.Y)
     end
     
     -- Determinar se deve mirar
@@ -738,7 +707,7 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
                 local currentCFrame = camera.CFrame
                 
                 -- Calcular direção para o alvo
-                local direction = (targetPosition - currentCFrame.Position).Unit
+                local direction = (targetPosition - currentCFrame.PPosition).Unit
                 
                 -- Aplicar suavização e força
                 local currentLook = currentCFrame.LookVector
@@ -749,7 +718,7 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
                 camera.CFrame = newCFrame
             end)
             
-            if success and fovStroke and fovStroke.Parent then
+            if success and fovStroke and fovStroke.PParent then
                 -- Indicador visual - vermelho quando mirando
                 fovStroke.Color = Color3.fromRGB(255, 50, 50)
                 fovStroke.Thickness = 3
@@ -766,15 +735,10 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Conectar a mudanças no viewport
-connections[#connections + 1] = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-    updateFOVPosition()
-end)
-
 -- Input para Toggle melhorado
 connections[#connections + 1] = UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if not localPlayer.Parent or not screenGui or not screenGui.Parent then
+    if not localPlayer.PParent or not screenGui or not screenGui.PParent then
         return
     end
     
@@ -810,7 +774,7 @@ connections[#connections + 1] = Players.PlayerRemoving:Connect(function(player)
 end)
 
 connections[#connections + 1] = screenGui.AncestryChanged:Connect(function()
-    if not screenGui.Parent then
+    if not screenGui.PParent then
         cleanup()
     end
 end)
