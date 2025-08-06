@@ -44,7 +44,7 @@ end
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AimbotUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+screenGui.PParent = localPlayer:WaitForChild("PlayerGui")
 
 print("GUI criada e adicionada ao PlayerGui")
 
@@ -56,17 +56,17 @@ fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 fovCircle.BackgroundTransparency = 1
 fovCircle.BorderSizePixel = 0
 fovCircle.Visible = settings.DrawFOV
-fovCircle.Parent = screenGui
+fovCircle.PParent = screenGui
 
 local fovStroke = Instance.new("UIStroke")
 fovStroke.Color = Color3.fromRGB(0, 255, 255)
 fovStroke.Thickness = 2
 fovStroke.Transparency = 0.3
-fovStroke.Parent = fovCircle
+fovStroke.PParent = fovCircle
 
 local fovCorner = Instance.new("UICorner")
 fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
+fovCorner.PParent = fovCircle
 
 -- GUI Principal
 local mainFrame = Instance.new("Frame")
@@ -76,7 +76,7 @@ mainFrame.Position = UDim2.new(0, 50, 0, 50)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Parent = screenGui
+mainFrame.PParent = screenGui
 
 print("Frame principal criado")
 
@@ -89,22 +89,22 @@ shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 shadow.BackgroundTransparency = 0.7
 shadow.BorderSizePixel = 0
 shadow.ZIndex = -1
-shadow.Parent = mainFrame
+shadow.PParent = mainFrame
 
 local shadowCorner = Instance.new("UICorner")
 shadowCorner.CornerRadius = UDim.new(0, 12)
-shadowCorner.Parent = shadow
+shadowCorner.PParent = shadow
 
 -- Cantos do frame principal
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.Parent = mainFrame
+mainCorner.PParent = mainFrame
 
 local mainStroke = Instance.new("UIStroke")
 mainStroke.Color = Color3.fromRGB(0, 200, 255)
 mainStroke.Thickness = 1
 mainStroke.Transparency = 0.5
-mainStroke.Parent = mainFrame
+mainStroke.PParent = mainFrame
 
 -- Header
 local header = Instance.new("Frame")
@@ -113,11 +113,11 @@ header.Size = UDim2.new(1, 0, 0, 40)
 header.Position = UDim2.new(0, 0, 0, 0)
 header.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 header.BorderSizePixel = 0
-header.Parent = mainFrame
+header.PParent = mainFrame
 
 local headerCorner = Instance.new("UICorner")
 headerCorner.CornerRadius = UDim.new(0, 10)
-headerCorner.Parent = header
+headerCorner.PParent = header
 
 -- Título
 local title = Instance.new("TextLabel")
@@ -129,7 +129,7 @@ title.Text = "🎯 AIMBOT PRO"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
-title.Parent = header
+title.PParent = header
 
 -- Botão minimizar
 local minimizeBtn = Instance.new("TextButton")
@@ -142,11 +142,11 @@ minimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
 minimizeBtn.TextScaled = true
 minimizeBtn.Font = Enum.Font.GothamBold
 minimizeBtn.BorderSizePixel = 0
-minimizeBtn.Parent = header
+minimizeBtn.PParent = header
 
 local minimizeCorner = Instance.new("UICorner")
 minimizeCorner.CornerRadius = UDim.new(0, 6)
-minimizeCorner.Parent = minimizeBtn
+minimizeCorner.PParent = minimizeBtn
 
 -- Botão fechar
 local closeBtn = Instance.new("TextButton")
@@ -159,11 +159,11 @@ closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeBtn.TextScaled = true
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.BorderSizePixel = 0
-closeBtn.Parent = header
+closeBtn.PParent = header
 
 local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
-closeCorner.Parent = closeBtn
+closeCorner.PParent = closeBtn
 
 -- Container de conteúdo
 local contentFrame = Instance.new("Frame")
@@ -171,7 +171,7 @@ contentFrame.Name = "Content"
 contentFrame.Size = UDim2.new(1, -20, 1, -50)
 contentFrame.Position = UDim2.new(0, 10, 0, 45)
 contentFrame.BackgroundTransparency = 1
-contentFrame.Parent = mainFrame
+contentFrame.PParent = mainFrame
 
 -- ScrollingFrame
 local scrollFrame = Instance.new("ScrollingFrame")
@@ -182,12 +182,12 @@ scrollFrame.BorderSizePixel = 0
 scrollFrame.ScrollBarThickness = 6
 scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
 scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
-scrollFrame.Parent = contentFrame
+scrollFrame.PParent = contentFrame
 
 local scrollLayout = Instance.new("UIListLayout")
 scrollLayout.Padding = UDim.new(0, 8)
 scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
-scrollLayout.Parent = scrollFrame
+scrollLayout.PParent = scrollFrame
 
 print("Estrutura básica da GUI criada")
 
@@ -197,11 +197,11 @@ local function createToggle(labelText, defaultState, callback)
     container.Size = UDim2.new(1, 0, 0, 35)
     container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     container.BorderSizePixel = 0
-    container.Parent = scrollFrame
+    container.PParent = scrollFrame
     
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.PParent = container
+    containerCorner.PPParent = container
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -80, 1, 0)
@@ -212,35 +212,35 @@ local function createToggle(labelText, defaultState, callback)
     label.TextScaled = true
     label.Font = Enum.Font.Gotham
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    label.PParent = container
     
     local toggle = Instance.new("Frame")
     toggle.Size = UDim2.new(0, 60, 0, 25)
     toggle.Position = UDim2.new(1, -70, 0.5, -12.5)
     toggle.BackgroundColor3 = defaultState and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(100, 100, 100)
     toggle.BorderSizePixel = 0
-    toggle.Parent = container
+    toggle.PParent = container
     
     local toggleCorner = Instance.new("UICorner")
     toggleCorner.CornerRadius = UDim.new(1, 0)
-    toggleCorner.Parent = toggle
+    toggleCorner.PParent = toggle
     
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 21, 0, 21)
     knob.Position = defaultState and UDim2.new(1, -23, 0.5, -10.5) or UDim2.new(0, 2, 0.5, -10.5)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     knob.BorderSizePixel = 0
-    knob.Parent = toggle
+    knob.PParent = toggle
     
     local knobCorner = Instance.new("UICorner")
     knobCorner.CornerRadius = UDim.new(1, 0)
-    knobCorner.Parent = knob
+    knobCorner.PParent = knob
     
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, 0, 1, 0)
     button.BackgroundTransparency = 1
     button.Text = ""
-    button.Parent = container
+    button.PParent = container
     
     button.MouseButton1Click:Connect(function()
         defaultState = not defaultState
@@ -263,11 +263,11 @@ local function createDropdown(labelText, options, default, callback)
     container.Size = UDim2.new(1, 0, 0, 70)
     container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     container.BorderSizePixel = 0
-    container.Parent = scrollFrame
+    container.PParent = scrollFrame
     
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.Parent = container
+    containerCorner.PParent = container
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -10, 0, 25)
@@ -278,7 +278,7 @@ local function createDropdown(labelText, options, default, callback)
     label.TextScaled = true
     label.Font = Enum.Font.Gotham
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    label.PParent = container
     
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, -20, 0, 30)
@@ -289,11 +289,11 @@ local function createDropdown(labelText, options, default, callback)
     button.TextScaled = true
     button.Font = Enum.Font.GothamBold
     button.BorderSizePixel = 0
-    button.Parent = container
+    button.PParent = container
     
     local buttonCorner = Instance.new("UICorner")
     buttonCorner.CornerRadius = UDim.new(0, 4)
-    buttonCorner.Parent = button
+    buttonCorner.PParent = button
     
     local current = 1
     for i, option in ipairs(options) do
@@ -319,11 +319,11 @@ local function createKeybind(labelText, currentKey, callback)
     container.Size = UDim2.new(1, 0, 0, 70)
     container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     container.BorderSizePixel = 0
-    container.Parent = scrollFrame
+    container.PParent = scrollFrame
     
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.Parent = container
+    containerCorner.PParent = container
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -10, 0, 25)
@@ -334,7 +334,7 @@ local function createKeybind(labelText, currentKey, callback)
     label.TextScaled = true
     label.Font = Enum.Font.Gotham
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    label.PParent = container
     
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, -20, 0, 30)
@@ -345,11 +345,11 @@ local function createKeybind(labelText, currentKey, callback)
     button.TextScaled = true
     button.Font = Enum.Font.GothamBold
     button.BorderSizePixel = 0
-    button.Parent = container
+    button.PParent = container
     
     local buttonCorner = Instance.new("UICorner")
     buttonCorner.CornerRadius = UDim.new(0, 4)
-    buttonCorner.Parent = button
+    buttonCorner.PParent = button
     
     button.MouseButton1Click:Connect(function()
         button.Text = "Pressione uma tecla..."
@@ -377,11 +377,11 @@ local function createSlider(labelText, minVal, maxVal, defaultVal, callback)
     container.Size = UDim2.new(1, 0, 0, 60)
     container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     container.BorderSizePixel = 0
-    container.Parent = scrollFrame
+    container.PParent = scrollFrame
     
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.Parent = container
+    containerCorner.PParent = container
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0.7, 0, 0, 25)
@@ -392,7 +392,7 @@ local function createSlider(labelText, minVal, maxVal, defaultVal, callback)
     label.TextScaled = true
     label.Font = Enum.Font.Gotham
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    label.PParent = container
     
     local valueLabel = Instance.new("TextLabel")
     valueLabel.Size = UDim2.new(0.3, -10, 0, 25)
@@ -403,35 +403,35 @@ local function createSlider(labelText, minVal, maxVal, defaultVal, callback)
     valueLabel.TextScaled = true
     valueLabel.Font = Enum.Font.GothamBold
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = container
+    valueLabel.PParent = container
     
     local sliderBg = Instance.new("Frame")
     sliderBg.Size = UDim2.new(1, -20, 0, 6)
     sliderBg.Position = UDim2.new(0, 10, 1, -20)
     sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
     sliderBg.BorderSizePixel = 0
-    sliderBg.Parent = container
+    sliderBg.PParent = container
     
     local sliderBgCorner = Instance.new("UICorner")
     sliderBgCorner.CornerRadius = UDim.new(1, 0)
-    sliderBgCorner.PParent = sliderBg
+    sliderBgCorner.PPParent = sliderBg
     
     local sliderFill = Instance.new("Frame")
     sliderFill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
     sliderFill.Position = UDim2.new(0, 0, 0, 0)
     sliderFill.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
     sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderBg
+    sliderFill.PParent = sliderBg
     
     local sliderFillCorner = Instance.new("UICorner")
     sliderFillCorner.CornerRadius = UDim.new(1, 0)
-    sliderFillCorner.Parent = sliderFill
+    sliderFillCorner.PParent = sliderFill
     
     local sliderButton = Instance.new("TextButton")
     sliderButton.Size = UDim2.new(1, 0, 1, 0)
     sliderButton.BackgroundTransparency = 1
     sliderButton.Text = ""
-    sliderButton.Parent = sliderBg
+    sliderButton.PParent = sliderBg
     
     local draggingSlider = false
     
@@ -589,7 +589,7 @@ print("Sistema de botões configurado")
 
 -- Lógica do aimbot melhorada e mais agressiva
 local function getClosestTarget()
-    if not localPlayer.Parent or not camera or not camera.Parent then
+    if not localPlayer.PParent or not camera or not camera.PParent then
         return nil
     end
     
@@ -668,18 +668,18 @@ end
 
 -- Loop principal melhorado
 connections[#connections + 1] = RunService.Heartbeat:Connect(function()
-    if not screenGui or not screenGui.Parent or not localPlayer.Parent then
+    if not screenGui or not screenGui.PParent or not localPlayer.PParent then
         cleanup()
         return
     end
     
-    if not camera or not camera.Parent then
+    if not camera or not camera.PParent then
         camera = workspace.CurrentCamera
         if not camera then return end
     end
     
     -- Atualizar FOV (sempre centralizado)
-    if settings.DrawFOV and fovCircle and fovCircle.Parent then
+    if settings.DrawFOV and fovCircle and fovCircle.PParent then
         -- Manter círculo sempre no centro da tela (removida a atualização baseada no mouse)
         fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
         fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
@@ -701,7 +701,7 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
     -- Aplicar aimbot com força melhorada
     if shouldAim then
         local targetData = getClosestTarget()
-        if targetData and camera and camera.Parent then
+        if targetData and camera and camera.PParent then
             local success = pcall(function()
                 local targetPosition = targetData.position
                 local currentCFrame = camera.CFrame
@@ -718,17 +718,17 @@ connections[#connections + 1] = RunService.Heartbeat:Connect(function()
                 camera.CFrame = newCFrame
             end)
             
-            if success and fovStroke and fovStroke.PParent then
+            if success and fovStroke and fovStroke.PPParent then
                 -- Indicador visual - vermelho quando mirando
                 fovStroke.Color = Color3.fromRGB(255, 50, 50)
                 fovStroke.Thickness = 3
             end
-        elseif fovStroke and fovStroke.Parent then
+        elseif fovStroke and fovStroke.PParent then
             -- Cor normal quando não há alvo
             fovStroke.Color = Color3.fromRGB(0, 255, 255)
             fovStroke.Thickness = 2
         end
-    elseif fovStroke and fovStroke.Parent then
+    elseif fovStroke and fovStroke.PParent then
         -- Cor padrão quando não está mirando
         fovStroke.Color = Color3.fromRGB(0, 255, 255)
         fovStroke.Thickness = 2
@@ -738,7 +738,7 @@ end)
 -- Input para Toggle melhorado
 connections[#connections + 1] = UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if not localPlayer.PParent or not screenGui or not screenGui.PParent then
+    if not localPlayer.PPParent or not screenGui or not screenGui.PPParent then
         return
     end
     
@@ -751,7 +751,7 @@ connections[#connections + 1] = UserInputService.InputBegan:Connect(function(inp
             print("Aimbot toggled:", toggled)
             
             -- Feedback visual do toggle
-            if fovStroke and fovStroke.Parent then
+            if fovStroke and fovStroke.PParent then
                 if toggled then
                     fovStroke.Color = Color3.fromRGB(0, 255, 0)
                     task.wait(0.2)
@@ -774,13 +774,13 @@ connections[#connections + 1] = Players.PlayerRemoving:Connect(function(player)
 end)
 
 connections[#connections + 1] = screenGui.AncestryChanged:Connect(function()
-    if not screenGui.PParent then
+    if not screenGui.PPParent then
         cleanup()
     end
 end)
 
 script.AncestryChanged:Connect(function()
-    if not script.Parent then
+    if not script.PParent then
         cleanup()
     end
 end)
