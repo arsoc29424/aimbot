@@ -1,790 +1,495 @@
--- LocalScript: AimbotGUIAndLogic.lua
+-- LocalScript: ImprovedAutoAimSystem.lua
+-- Sistema de Auto-Aim para desenvolvimento de jogos próprios
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- CONFIGURAÇÕES PADRÃO
-local settings = {
+-- CONFIGURAÇÕES DO SISTEMA
+local AimSettings = {
+    -- Controles
     AimKey = Enum.KeyCode.E,
-    AimMode = "Hold", -- "Hold", "Toggle", "Always"
+    AimMode = "Hold", -- "Hold", "Toggle", "Always", "Disabled"
+    
+    -- Visual
     DrawFOV = true,
     FOVRadius = 150,
-    AimPart = "Head",
+    FOVColor = Color3.fromRGB(0, 255, 255),
+    
+    -- Targeting
+    AimPart = "Head", -- "Head", "Torso", "HumanoidRootPart"
     MaxDistance = 500,
+    MinDistance = 5, -- Evitar targets muito próximos
+    
+    -- Comportamento
     Smoothness = 0.25,
-    WallCheck = false, -- Desabilitado por padrão para puxar através da parede
+    AimStrength = 1.0,
+    Prediction = 0.1,
+    
+    -- Filtros
+    WallCheck = false,
     TeamCheck = true,
-    Prediction = 0.1, -- Predição de movimento
-    AimStrength = 1.0 -- Força do aimbot
+    IgnoreInvisible = true,
+    TargetNPCsOnly = false, -- Para jogos PvE
+    
+    -- Performance
+    UpdateRate = 60, -- FPS do sistema
+    MaxTargetsToCheck = 20 -- Limite de alvos para otimização
 }
 
--- ESTADO
-local aiming = false
-local toggled = false
-local connections = {}
+-- ESTADO DO SISTEMA
+local SystemState = {
+    isActive = false,
+    isToggled = false,
+    currentTarget = nil,
+    lastUpdate = 0,
+    connections = {},
+    guiElements = {}
+}
 
--- Sistema de cleanup
-local function cleanup()
-    print("Cleanup iniciado...")
-    for _, connection in pairs(connections) do
+-- SISTEMA DE CLEANUP MELHORADO
+local function cleanupSystem()
+    print("[AutoAim] Iniciando cleanup...")
+    
+    -- Desconectar todas as conexões
+    for name, connection in pairs(SystemState.connections) do
         if connection and connection.Connected then
             connection:Disconnect()
+            print("[AutoAim] Desconectado:", name)
         end
     end
-    connections = {}
-    aiming = false
-    toggled = false
+    SystemState.connections = {}
+    
+    -- Limpar GUI
+    if SystemState.guiElements.screenGui then
+        SystemState.guiElements.screenGui:Destroy()
+    end
+    SystemState.guiElements = {}
+    
+    -- Reset do estado
+    SystemState.isActive = false
+    SystemState.isToggled = false
+    SystemState.currentTarget = nil
+    
+    print("[AutoAim] Cleanup concluído")
 end
 
--- GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AimbotUI"
-screenGui.ResetOnSpawn = false
-screenGui.PParent = localPlayer:WaitForChild("PlayerGui")
-
-print("GUI criada e adicionada ao PlayerGui")
-
--- Círculo do FOV centralizado
-local fovCircle = Instance.new("Frame")
-fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
-fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.BackgroundTransparency = 1
-fovCircle.BorderSizePixel = 0
-fovCircle.Visible = settings.DrawFOV
-fovCircle.PParent = screenGui
-
-local fovStroke = Instance.new("UIStroke")
-fovStroke.Color = Color3.fromRGB(0, 255, 255)
-fovStroke.Thickness = 2
-fovStroke.Transparency = 0.3
-fovStroke.PParent = fovCircle
-
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.PParent = fovCircle
-
--- GUI Principal
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 280, 0, 350)
-mainFrame.Position = UDim2.new(0, 50, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.PParent = screenGui
-
-print("Frame principal criado")
-
--- Sombra
-local shadow = Instance.new("Frame")
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(1, 6, 1, 6)
-shadow.Position = UDim2.new(0, -3, 0, -3)
-shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-shadow.BackgroundTransparency = 0.7
-shadow.BorderSizePixel = 0
-shadow.ZIndex = -1
-shadow.PParent = mainFrame
-
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(0, 12)
-shadowCorner.PParent = shadow
-
--- Cantos do frame principal
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.PParent = mainFrame
-
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(0, 200, 255)
-mainStroke.Thickness = 1
-mainStroke.Transparency = 0.5
-mainStroke.PParent = mainFrame
-
--- Header
-local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 40)
-header.Position = UDim2.new(0, 0, 0, 0)
-header.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-header.BorderSizePixel = 0
-header.PParent = mainFrame
-
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 10)
-headerCorner.PParent = header
-
--- Título
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, -80, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "🎯 AIMBOT PRO"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.PParent = header
-
--- Botão minimizar
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Name = "MinimizeBtn"
-minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-minimizeBtn.Position = UDim2.new(1, -65, 0, 5)
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-minimizeBtn.Text = "-"
-minimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-minimizeBtn.TextScaled = true
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.BorderSizePixel = 0
-minimizeBtn.PParent = header
-
-local minimizeCorner = Instance.new("UICorner")
-minimizeCorner.CornerRadius = UDim.new(0, 6)
-minimizeCorner.PParent = minimizeBtn
-
--- Botão fechar
-local closeBtn = Instance.new("TextButton")
-closeBtn.Name = "CloseBtn"
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextScaled = true
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.BorderSizePixel = 0
-closeBtn.PParent = header
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 6)
-closeCorner.PParent = closeBtn
-
--- Container de conteúdo
-local contentFrame = Instance.new("Frame")
-contentFrame.Name = "Content"
-contentFrame.Size = UDim2.new(1, -20, 1, -50)
-contentFrame.Position = UDim2.new(0, 10, 0, 45)
-contentFrame.BackgroundTransparency = 1
-contentFrame.PParent = mainFrame
-
--- ScrollingFrame
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, 0, 1, 0)
-scrollFrame.Position = UDim2.new(0, 0, 0, 0)
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.BorderSizePixel = 0
-scrollFrame.ScrollBarThickness = 6
-scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
-scrollFrame.PParent = contentFrame
-
-local scrollLayout = Instance.new("UIListLayout")
-scrollLayout.Padding = UDim.new(0, 8)
-scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
-scrollLayout.PParent = scrollFrame
-
-print("Estrutura básica da GUI criada")
-
--- Função para criar toggles
-local function createToggle(labelText, defaultState, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 35)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    container.BorderSizePixel = 0
-    container.PParent = scrollFrame
+-- VALIDAÇÕES DE SEGURANÇA
+local function validateEnvironment()
+    if not localPlayer or not localPlayer.Parent then
+        warn("[AutoAim] Jogador local inválido")
+        return false
+    end
     
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.PPParent = container
+    if not camera or not camera.Parent then
+        camera = workspace.CurrentCamera
+        if not camera then
+            warn("[AutoAim] Câmera inválida")
+            return false
+        end
+    end
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -80, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.PParent = container
-    
-    local toggle = Instance.new("Frame")
-    toggle.Size = UDim2.new(0, 60, 0, 25)
-    toggle.Position = UDim2.new(1, -70, 0.5, -12.5)
-    toggle.BackgroundColor3 = defaultState and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(100, 100, 100)
-    toggle.BorderSizePixel = 0
-    toggle.PParent = container
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(1, 0)
-    toggleCorner.PParent = toggle
-    
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 21, 0, 21)
-    knob.Position = defaultState and UDim2.new(1, -23, 0.5, -10.5) or UDim2.new(0, 2, 0.5, -10.5)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.BorderSizePixel = 0
-    knob.PParent = toggle
-    
-    local knobCorner = Instance.new("UICorner")
-    knobCorner.CornerRadius = UDim.new(1, 0)
-    knobCorner.PParent = knob
-    
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, 0, 1, 0)
-    button.BackgroundTransparency = 1
-    button.Text = ""
-    button.PParent = container
-    
-    button.MouseButton1Click:Connect(function()
-        defaultState = not defaultState
-        
-        local targetColor = defaultState and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(100, 100, 100)
-        local targetPos = defaultState and UDim2.new(1, -23, 0.5, -10.5) or UDim2.new(0, 2, 0.5, -10.5)
-        
-        TweenService:Create(toggle, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
-        TweenService:Create(knob, TweenInfo.new(0.2), {Position = targetPos}):Play()
-        
-        callback(defaultState)
-    end)
-    
-    return container
+    return true
 end
 
--- Função para criar dropdowns
-local function createDropdown(labelText, options, default, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 70)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    container.BorderSizePixel = 0
-    container.PParent = scrollFrame
+-- FUNÇÃO DE TARGETING OTIMIZADA
+local function getOptimalTarget()
+    if not validateEnvironment() then return nil end
     
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.PParent = container
+    local potentialTargets = {}
+    local playerCount = 0
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0, 25)
-    label.Position = UDim2.new(0, 10, 0, 5)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.PParent = container
-    
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 30)
-    button.Position = UDim2.new(0, 10, 0, 30)
-    button.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-    button.Text = default
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextScaled = true
-    button.Font = Enum.Font.GothamBold
-    button.BorderSizePixel = 0
-    button.PParent = container
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 4)
-    buttonCorner.PParent = button
-    
-    local current = 1
-    for i, option in ipairs(options) do
-        if option == default then
-            current = i
-            break
-        end
-    end
-    
-    button.MouseButton1Click:Connect(function()
-        current = current + 1
-        if current > #options then current = 1 end
-        button.Text = options[current]
-        callback(options[current])
-    end)
-    
-    return container
-end
-
--- Função para criar keybind
-local function createKeybind(labelText, currentKey, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 70)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    container.BorderSizePixel = 0
-    container.PParent = scrollFrame
-    
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.PParent = container
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0, 25)
-    label.PPosition = UDim2.new(0, 10, 0, 5)
-    label.BackgroundTransparency = 1
-    label.Text = labelText .. ": " .. currentKey.Name
-    label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.PParent = container
-    
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 30)
-    button.Position = UDim2.new(0, 10, 0, 30)
-    button.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-    button.Text = "Clique para alterar"
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextScaled = true
-    button.Font = Enum.Font.GothamBold
-    button.BorderSizePixel = 0
-    button.PParent = container
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 4)
-    buttonCorner.PParent = button
-    
-    button.MouseButton1Click:Connect(function()
-        button.Text = "Pressione uma tecla..."
-        button.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
-        
-        local conn
-        conn = UserInputService.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                settings.AimKey = input.KeyCode
-                label.Text = labelText .. ": " .. input.KeyCode.Name
-                button.Text = "Clique para alterar"
-                button.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-                conn:Disconnect()
-                callback(input.KeyCode)
-            end
-        end)
-    end)
-    
-    return container
-end
-
--- Função para criar sliders
-local function createSlider(labelText, minVal, maxVal, defaultVal, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 60)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    container.BorderSizePixel = 0
-    container.PParent = scrollFrame
-    
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0, 6)
-    containerCorner.PParent = container
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.7, 0, 0, 25)
-    label.Position = UDim2.new(0, 10, 0, 5)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.PParent = container
-    
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(0.3, -10, 0, 25)
-    valueLabel.Position = UDim2.new(0.7, 0, 0, 5)
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.Text = tostring(defaultVal)
-    valueLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
-    valueLabel.TextScaled = true
-    valueLabel.Font = Enum.Font.GothamBold
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.PParent = container
-    
-    local sliderBg = Instance.new("Frame")
-    sliderBg.Size = UDim2.new(1, -20, 0, 6)
-    sliderBg.Position = UDim2.new(0, 10, 1, -20)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    sliderBg.BorderSizePixel = 0
-    sliderBg.PParent = container
-    
-    local sliderBgCorner = Instance.new("UICorner")
-    sliderBgCorner.CornerRadius = UDim.new(1, 0)
-    sliderBgCorner.PPParent = sliderBg
-    
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
-    sliderFill.Position = UDim2.new(0, 0, 0, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-    sliderFill.BorderSizePixel = 0
-    sliderFill.PParent = sliderBg
-    
-    local sliderFillCorner = Instance.new("UICorner")
-    sliderFillCorner.CornerRadius = UDim.new(1, 0)
-    sliderFillCorner.PParent = sliderFill
-    
-    local sliderButton = Instance.new("TextButton")
-    sliderButton.Size = UDim2.new(1, 0, 1, 0)
-    sliderButton.BackgroundTransparency = 1
-    sliderButton.Text = ""
-    sliderButton.PParent = sliderBg
-    
-    local draggingSlider = false
-    
-    sliderButton.MouseButton1Down:Connect(function()
-        draggingSlider = true
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = false
-        end
-    end)
-    
-    sliderButton.MouseMoved:Connect(function()
-        if draggingSlider then
-            local mouse = UserInputService:GetMouseLocation()
-            local sliderPos = sliderBg.AbsolutePosition
-            local relativePos = math.clamp((mouse.X - sliderPos.X) / sliderBg.AbsoluteSize.X, 0, 1)
-            local value = math.floor(minVal + (maxVal - minVal) * relativePos)
-            
-            sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
-            valueLabel.Text = tostring(value)
-            callback(value)
-        end
-    end)
-    
-    return container
-end
-
-print("Funções de criação de elementos definidas")
-
--- Criando as opções
-createToggle("Mostrar FOV", settings.DrawFOV, function(val)
-    settings.DrawFOV = val
-    fovCircle.Visible = val
-end)
-
-createDropdown("Modo de Mira", {"Hold", "Toggle", "Always"}, settings.AimMode, function(val)
-    settings.AimMode = val
-end)
-
-createDropdown("Parte do Corpo", {"Head", "Torso", "HumanoidRootPart"}, settings.AimPart, function(val)
-    settings.AimPart = val
-end)
-
-createKeybind("Tecla do Aimbot", settings.AimKey, function(val)
-    settings.AimKey = val
-    print("Nova tecla do aimbot:", val.Name)
-end)
-
-createSlider("Raio FOV", 50, 500, settings.FOVRadius, function(val)
-    settings.FOVRadius = val
-    if fovCircle then
-        fovCircle.Size = UDim2.new(0, val * 2, 0, val * 2)
-        fovCircle.Position = UDim2.new(0.5, -val, 0.5, -val)
-    end
-end)
-
-createSlider("Suavidade", 1, 50, math.floor(settings.Smoothness * 100), function(val)
-    settings.Smoothness = val / 100
-end)
-
-createSlider("Distância Máxima", 100, 2000, settings.MaxDistance, function(val)
-    settings.MaxDistance = val
-end)
-
-createSlider("Força do Aimbot", 10, 100, math.floor(settings.AimStrength * 100), function(val)
-    settings.AimStrength = val / 100
-end)
-
-createSlider("Predição", 0, 50, math.floor(settings.Prediction * 100), function(val)
-    settings.Prediction = val / 100
-end)
-
-createToggle("Verificar Parede", settings.WallCheck, function(val)
-    settings.WallCheck = val
-end)
-
-createToggle("Verificar Time", settings.TeamCheck, function(val)
-    settings.TeamCheck = val
-end)
-
-print("Elementos da GUI criados")
-
--- Atualizar tamanho do scroll
-scrollLayout.Changed:Connect(function(property)
-    if property == "AbsoluteContentSize" then
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, scrollLayout.AbsoluteContentSize.Y + 10)
-    end
-end)
-
--- Sistema de drag
-local function makeDraggable(frame, dragHandle)
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-    
-    local function onInputBegan(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-        end
-    end
-    
-    local function onInputChanged(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end
-    
-    local function onInputEnded(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end
-    
-    connections[#connections + 1] = dragHandle.InputBegan:Connect(onInputBegan)
-    connections[#connections + 1] = UserInputService.InputChanged:Connect(onInputChanged)
-    connections[#connections + 1] = UserInputService.InputEnded:Connect(onInputEnded)
-end
-
--- Tornar GUI draggable
-makeDraggable(mainFrame, header)
-
--- Botões
-local minimized = false
-minimizeBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    local targetSize = minimized and UDim2.new(0, 280, 0, 40) or UDim2.new(0, 280, 0, 350)
-    TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = targetSize}):Play()
-    minimizeBtn.Text = minimized and "+" or "-"
-    contentFrame.Visible = not minimized
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-    TweenService:Create(mainFrame, TweenInfo.new(0.3), {
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(0.5, 0, 0.5, 0)
-    }):Play()
-    task.wait(0.3)
-    cleanup()
-    if screenGui then
-        screenGui:Destroy()
-    end
-end)
-
-print("Sistema de botões configurado")
-
--- Lógica do aimbot melhorada e mais agressiva
-local function getClosestTarget()
-    if not localPlayer.PParent or not camera or not camera.PParent then
-        return nil
-    end
-    
-    local closest = nil
-    local shortestDistance = math.huge
-    
-    -- Centro absoluto da tela
-    local centerX = camera.ViewportSize.X / 2
-    local centerY = camera.ViewportSize.Y / 2
-    local screenCenter = Vector2.new(centerX, centerY)
-    
+    -- Coletar alvos potenciais
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character and player.Character:FindFirstChild(settings.AimPart) then
-            -- Verificação de time (opcional)
-            if settings.TeamCheck and player.Team and localPlayer.Team and player.Team == localPlayer.Team then
+        if playerCount >= AimSettings.MaxTargetsToCheck then break end
+        
+        if player ~= localPlayer and player.Character then
+            local targetPart = player.Character:FindFirstChild(AimSettings.AimPart)
+            if not targetPart then continue end
+            
+            -- Verificação de time
+            if AimSettings.TeamCheck and player.Team and localPlayer.Team 
+               and player.Team == localPlayer.Team then
                 continue
             end
             
-            local part = player.Character[settings.AimPart]
-            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            
-            -- Predição de movimento
-            local targetPosition = part.Position
-            if settings.Prediction > 0 and humanoidRootPart and humanoidRootPart.Velocity then
-                targetPosition = part.Position + (humanoidRootPart.Velocity * settings.Prediction)
+            -- Verificação de NPCs apenas
+            if AimSettings.TargetNPCsOnly and Players:GetPlayerFromCharacter(player.Character) then
+                continue
             end
             
-            local success2, screenPos, onScreen = pcall(function()
-                return camera:WorldToViewportPoint(targetPosition)
+            -- Verificação de visibilidade
+            if AimSettings.IgnoreInvisible then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health <= 0 then continue end
+            end
+            
+            table.insert(potentialTargets, {
+                player = player,
+                character = player.Character,
+                targetPart = targetPart
+            })
+            playerCount = playerCount + 1
+        end
+    end
+    
+    if #potentialTargets == 0 then return nil end
+    
+    -- Avaliar e selecionar o melhor alvo
+    local bestTarget = nil
+    local bestScore = math.huge
+    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+    
+    for _, target in ipairs(potentialTargets) do
+        local targetPart = target.targetPart
+        local humanoidRootPart = target.character:FindFirstChild("HumanoidRootPart")
+        
+        -- Calcular posição com predição
+        local targetPosition = targetPart.Position
+        if AimSettings.Prediction > 0 and humanoidRootPart and humanoidRootPart.Velocity then
+            targetPosition = targetPosition + (humanoidRootPart.Velocity * AimSettings.Prediction)
+        end
+        
+        -- Verificar distância 3D
+        local distance3D = (camera.CFrame.Position - targetPosition).Magnitude
+        if distance3D > AimSettings.MaxDistance or distance3D < AimSettings.MinDistance then
+            continue
+        end
+        
+        -- Projetar para tela
+        local success, screenPos, onScreen = pcall(function()
+            return camera:WorldToViewportPoint(targetPosition)
+        end)
+        
+        if not success or not onScreen then continue end
+        
+        -- Verificar FOV
+        local screenDistance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+        if screenDistance > AimSettings.FOVRadius then continue end
+        
+        -- Verificação de parede (opcional)
+        if AimSettings.WallCheck then
+            local rayDirection = targetPosition - camera.CFrame.Position
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+            
+            local success2, rayResult = pcall(function()
+                return workspace:Raycast(camera.CFrame.Position, rayDirection, raycastParams)
             end)
             
-            if not success2 then continue end
+            if success2 and rayResult then
+                local hitPart = rayResult.Instance
+                if not hitPart:IsDescendantOf(target.character) then
+                    continue
+                end
+            end
+        end
+        
+        -- Calcular score (menor é melhor)
+        local score = screenDistance + (distance3D * 0.1)
+        
+        if score < bestScore then
+            bestScore = score
+            bestTarget = {
+                character = target.character,
+                part = targetPart,
+                position = targetPosition,
+                distance = distance3D,
+                screenDistance = screenDistance,
+                player = target.player
+            }
+        end
+    end
+    
+    return bestTarget
+end
+
+-- SISTEMA DE MIRA SUAVIZADA
+local function applyAiming(targetData)
+    if not targetData or not validateEnvironment() then return end
+    
+    local success = pcall(function()
+        local targetPosition = targetData.position
+        local currentCFrame = camera.CFrame
+        
+        -- Calcular direção suavizada
+        local direction = (targetPosition - currentCFrame.Position).Unit
+        local currentLook = currentCFrame.LookVector
+        
+        -- Aplicar suavização e força
+        local smoothFactor = AimSettings.Smoothness * AimSettings.AimStrength
+        local lerpedDirection = currentLook:Lerp(direction, smoothFactor)
+        
+        -- Aplicar rotação
+        local newCFrame = CFrame.lookAt(currentCFrame.Position, currentCFrame.Position + lerpedDirection)
+        camera.CFrame = newCFrame
+    end)
+    
+    if not success then
+        warn("[AutoAim] Erro ao aplicar mira")
+    end
+end
+
+-- CRIAÇÃO DA GUI OTIMIZADA
+local function createImprovedGUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoAimSystem"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+    
+    SystemState.guiElements.screenGui = screenGui
+    
+    -- Círculo FOV
+    if AimSettings.DrawFOV then
+        local fovCircle = Instance.new("Frame")
+        fovCircle.Name = "FOVCircle"
+        fovCircle.Size = UDim2.new(0, AimSettings.FOVRadius * 2, 0, AimSettings.FOVRadius * 2)
+        fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+        fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+        fovCircle.BackgroundTransparency = 1
+        fovCircle.BorderSizePixel = 0
+        fovCircle.Parent = screenGui
+        
+        local fovStroke = Instance.new("UIStroke")
+        fovStroke.Color = AimSettings.FOVColor
+        fovStroke.Thickness = 2
+        fovStroke.Transparency = 0.3
+        fovStroke.Parent = fovCircle
+        
+        local fovCorner = Instance.new("UICorner")
+        fovCorner.CornerRadius = UDim.new(1, 0)
+        fovCorner.Parent = fovCircle
+        
+        SystemState.guiElements.fovCircle = fovCircle
+        SystemState.guiElements.fovStroke = fovStroke
+    end
+    
+    -- Indicador de status
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Size = UDim2.new(0, 200, 0, 30)
+    statusLabel.Position = UDim2.new(0, 20, 0, 20)
+    statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    statusLabel.BackgroundTransparency = 0.3
+    statusLabel.Text = "Auto-Aim: Desativado"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.GothamBold
+    statusLabel.Parent = screenGui
+    
+    local statusCorner = Instance.new("UICorner")
+    statusCorner.CornerRadius = UDim.new(0, 8)
+    statusCorner.Parent = statusLabel
+    
+    SystemState.guiElements.statusLabel = statusLabel
+    
+    print("[AutoAim] GUI criada com sucesso")
+end
+
+-- ATUALIZAÇÃO DO SISTEMA PRINCIPAL
+local function updateSystem()
+    local currentTime = tick()
+    local deltaTime = currentTime - SystemState.lastUpdate
+    
+    -- Limitar taxa de atualização para performance
+    if deltaTime < (1 / AimSettings.UpdateRate) then return end
+    SystemState.lastUpdate = currentTime
+    
+    if not validateEnvironment() then
+        cleanupSystem()
+        return
+    end
+    
+    -- Atualizar FOV visual
+    if SystemState.guiElements.fovCircle and AimSettings.DrawFOV then
+        local fovCircle = SystemState.guiElements.fovCircle
+        fovCircle.Size = UDim2.new(0, AimSettings.FOVRadius * 2, 0, AimSettings.FOVRadius * 2)
+        fovCircle.Visible = AimSettings.DrawFOV
+    end
+    
+    -- Determinar se deve ativar a mira
+    local shouldAim = false
+    if AimSettings.AimMode == "Always" then
+        shouldAim = true
+    elseif AimSettings.AimMode == "Hold" then
+        local success = pcall(function()
+            return UserInputService:IsKeyDown(AimSettings.AimKey)
+        end)
+        shouldAim = success and UserInputService:IsKeyDown(AimSettings.AimKey)
+    elseif AimSettings.AimMode == "Toggle" then
+        shouldAim = SystemState.isToggled
+    elseif AimSettings.AimMode == "Disabled" then
+        shouldAim = false
+    end
+    
+    SystemState.isActive = shouldAim
+    
+    -- Atualizar status visual
+    if SystemState.guiElements.statusLabel then
+        local statusText = "Auto-Aim: " .. (shouldAim and "ATIVO" or "Desativado")
+        if shouldAim and SystemState.currentTarget then
+            statusText = statusText .. " | Alvo: " .. SystemState.currentTarget.player.Name
+        end
+        SystemState.guiElements.statusLabel.Text = statusText
+        SystemState.guiElements.statusLabel.TextColor3 = shouldAim and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
+    end
+    
+    -- Aplicar lógica de mira
+    if shouldAim then
+        local target = getOptimalTarget()
+        SystemState.currentTarget = target
+        
+        if target then
+            applyAiming(target)
             
-            -- Verificar distância 3D
-            local distance = (camera.CFrame.Position - targetPosition).Magnitude
-            if distance > settings.MaxDistance then continue end
-            
-            -- Verificar se está dentro do FOV (distância do centro da tela)
-            local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-            if distToCenter > settings.FOVRadius then continue end
-            
-            -- Verificação de parede (apenas se habilitada)
-            if settings.WallCheck then
-                local rayDirection = (targetPosition - camera.CFrame.Position)
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+            -- Feedback visual
+            if SystemState.guiElements.fovStroke then
+                SystemState.guiElements.fovStroke.Color = Color3.fromRGB(255, 100, 100)
+                SystemState.guiElements.fovStroke.Thickness = 3
+            end
+        else
+            -- Sem alvo
+            if SystemState.guiElements.fovStroke then
+                SystemState.guiElements.fovStroke.Color = AimSettings.FOVColor
+                SystemState.guiElements.fovStroke.Thickness = 2
+            end
+        end
+    else
+        SystemState.currentTarget = nil
+        -- Estado inativo
+        if SystemState.guiElements.fovStroke then
+            SystemState.guiElements.fovStroke.Color = AimSettings.FOVColor
+            SystemState.guiElements.fovStroke.Thickness = 2
+        end
+    end
+end
+
+-- GERENCIAMENTO DE INPUT
+local function setupInputHandling()
+    SystemState.connections.inputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            if input.KeyCode == AimSettings.AimKey and AimSettings.AimMode == "Toggle" then
+                SystemState.isToggled = not SystemState.isToggled
+                print("[AutoAim] Toggle:", SystemState.isToggled)
                 
-                local success3, rayResult = pcall(function()
-                    return workspace:Raycast(camera.CFrame.PPosition, rayDirection, raycastParams)
-                end)
-                
-                if success3 and rayResult then
-                    local hitPart = rayResult.Instance
-                    if not hitPart:IsDescendantOf(player.Character) then
-                        continue
+                -- Feedback visual do toggle
+                if SystemState.guiElements.fovStroke then
+                    local feedbackColor = SystemState.isToggled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                    SystemState.guiElements.fovStroke.Color = feedbackColor
+                    
+                    task.wait(0.2)
+                    if SystemState.guiElements.fovStroke then
+                        SystemState.guiElements.fovStroke.Color = AimSettings.FOVColor
                     end
                 end
             end
-            
-            -- Priorizar por distância do centro da tela (mais preciso)
-            if distToCenter < shortestDistance then
-                closest = {
-                    part = part,
-                    position = targetPosition,
-                    distance = distance,
-                    screenDistance = distToCenter
-                }
-                shortestDistance = distToCenter
-            end
         end
-    end
-    
-    return closest
+    end)
 end
 
--- Loop principal melhorado
-connections[#connections + 1] = RunService.Heartbeat:Connect(function()
-    if not screenGui or not screenGui.PParent or not localPlayer.PParent then
-        cleanup()
-        return
+-- INICIALIZAÇÃO DO SISTEMA
+local function initializeSystem()
+    print("[AutoAim] Inicializando sistema...")
+    
+    -- Validar ambiente
+    if not validateEnvironment() then
+        warn("[AutoAim] Ambiente inválido, cancelando inicialização")
+        return false
     end
     
-    if not camera or not camera.PParent then
-        camera = workspace.CurrentCamera
-        if not camera then return end
-    end
+    -- Criar GUI
+    createImprovedGUI()
     
-    -- Atualizar FOV (sempre centralizado)
-    if settings.DrawFOV and fovCircle and fovCircle.PParent then
-        -- Manter círculo sempre no centro da tela (removida a atualização baseada no mouse)
-        fovCircle.Position = UDim2.new(0.5, -settings.FOVRadius, 0.5, -settings.FOVRadius)
-        fovCircle.Size = UDim2.new(0, settings.FOVRadius * 2, 0, settings.FOVRadius * 2)
-    end
+    -- Configurar input
+    setupInputHandling()
     
-    -- Determinar se deve mirar
-    local shouldAim = false
-    if settings.AimMode == "Always" then
-        shouldAim = true
-    elseif settings.AimMode == "Hold" then
-        local success = pcall(function()
-            return UserInputService:IsKeyDown(settings.AimKey)
-        end)
-        shouldAim = success and UserInputService:IsKeyDown(settings.AimKey)
-    elseif settings.AimMode == "Toggle" then
-        shouldAim = toggled
-    end
+    -- Loop principal
+    SystemState.connections.heartbeat = RunService.Heartbeat:Connect(updateSystem)
     
-    -- Aplicar aimbot com força melhorada
-    if shouldAim then
-        local targetData = getClosestTarget()
-        if targetData and camera and camera.PParent then
-            local success = pcall(function()
-                local targetPosition = targetData.position
-                local currentCFrame = camera.CFrame
-                
-                -- Calcular direção para o alvo
-                local direction = (targetPosition - currentCFrame.PPosition).Unit
-                
-                -- Aplicar suavização e força
-                local currentLook = currentCFrame.LookVector
-                local lerpedDirection = currentLook:Lerp(direction, settings.Smoothness * settings.AimStrength)
-                
-                -- Aplicar nova rotação da câmera
-                local newCFrame = CFrame.lookAt(currentCFrame.Position, currentCFrame.Position + lerpedDirection)
-                camera.CFrame = newCFrame
-            end)
-            
-            if success and fovStroke and fovStroke.PPParent then
-                -- Indicador visual - vermelho quando mirando
-                fovStroke.Color = Color3.fromRGB(255, 50, 50)
-                fovStroke.Thickness = 3
-            end
-        elseif fovStroke and fovStroke.PParent then
-            -- Cor normal quando não há alvo
-            fovStroke.Color = Color3.fromRGB(0, 255, 255)
-            fovStroke.Thickness = 2
+    -- Cleanup automático
+    SystemState.connections.playerRemoving = Players.PlayerRemoving:Connect(function(player)
+        if player == localPlayer then
+            cleanupSystem()
         end
-    elseif fovStroke and fovStroke.PParent then
-        -- Cor padrão quando não está mirando
-        fovStroke.Color = Color3.fromRGB(0, 255, 255)
-        fovStroke.Thickness = 2
-    end
-end)
-
--- Input para Toggle melhorado
-connections[#connections + 1] = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if not localPlayer.PPParent or not screenGui or not screenGui.PPParent then
-        return
-    end
+    end)
     
-    -- Debug para verificar tecla pressionada
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        print("Tecla pressionada:", input.KeyCode.Name, "| Tecla do aimbot:", settings.AimKey.Name)
-        
-        if input.KeyCode == settings.AimKey and settings.AimMode == "Toggle" then
-            toggled = not toggled
-            print("Aimbot toggled:", toggled)
-            
-            -- Feedback visual do toggle
-            if fovStroke and fovStroke.PParent then
-                if toggled then
-                    fovStroke.Color = Color3.fromRGB(0, 255, 0)
-                    task.wait(0.2)
-                    fovStroke.Color = Color3.fromRGB(0, 255, 255)
-                else
-                    fovStroke.Color = Color3.fromRGB(255, 0, 0)
-                    task.wait(0.2)
-                    fovStroke.Color = Color3.fromRGB(0, 255, 255)
-                end
-            end
+    SystemState.connections.ancestryChanged = SystemState.guiElements.screenGui.AncestryChanged:Connect(function()
+        if not SystemState.guiElements.screenGui.Parent then
+            cleanupSystem()
         end
+    end)
+    
+    -- Cleanup no fechamento
+    game:BindToClose(cleanupSystem)
+    
+    print("[AutoAim] Sistema inicializado com sucesso!")
+    print("[AutoAim] Tecla de controle:", AimSettings.AimKey.Name)
+    print("[AutoAim] Modo:", AimSettings.AimMode)
+    
+    return true
+end
+
+-- API PÚBLICA PARA CONFIGURAÇÃO
+local AutoAimAPI = {}
+
+function AutoAimAPI:SetAimKey(keyCode)
+    AimSettings.AimKey = keyCode
+    print("[AutoAim] Nova tecla:", keyCode.Name)
+end
+
+function AutoAimAPI:SetAimMode(mode)
+    if mode == "Hold" or mode == "Toggle" or mode == "Always" or mode == "Disabled" then
+        AimSettings.AimMode = mode
+        print("[AutoAim] Novo modo:", mode)
+    else
+        warn("[AutoAim] Modo inválido:", mode)
     end
-end)
+end
 
--- Cleanup automático
-connections[#connections + 1] = Players.PlayerRemoving:Connect(function(player)
-    if player == localPlayer then
-        cleanup()
-    end
-end)
+function AutoAimAPI:SetFOVRadius(radius)
+    AimSettings.FOVRadius = math.clamp(radius, 10, 1000)
+    print("[AutoAim] Novo raio FOV:", AimSettings.FOVRadius)
+end
 
-connections[#connections + 1] = screenGui.AncestryChanged:Connect(function()
-    if not screenGui.PPParent then
-        cleanup()
-    end
-end)
+function AutoAimAPI:SetSmoothness(smoothness)
+    AimSettings.Smoothness = math.clamp(smoothness, 0.01, 1)
+    print("[AutoAim] Nova suavidade:", AimSettings.Smoothness)
+end
 
-script.AncestryChanged:Connect(function()
-    if not script.PParent then
-        cleanup()
-    end
-end)
+function AutoAimAPI:ToggleWallCheck(enabled)
+    AimSettings.WallCheck = enabled
+    print("[AutoAim] Verificação de parede:", enabled)
+end
 
-game:BindToClose(cleanup)
+function AutoAimAPI:GetCurrentTarget()
+    return SystemState.currentTarget
+end
 
-print("Aimbot GUI carregado com sucesso!")
+function AutoAimAPI:IsActive()
+    return SystemState.isActive
+end
+
+function AutoAimAPI:Shutdown()
+    cleanupSystem()
+end
+
+-- Inicializar automaticamente
+if initializeSystem() then
+    -- Disponibilizar API globalmente para outros scripts
+    _G.AutoAimAPI = AutoAimAPI
+    
+    print("[AutoAim] ✅ Sistema pronto para uso!")
+    print("[AutoAim] Use _G.AutoAimAPI para configurações avançadas")
+else
+    warn("[AutoAim] ❌ Falha na inicialização")
+end
+
+return AutoAimAPI
