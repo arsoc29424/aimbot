@@ -1,5 +1,5 @@
 -- LocalScript: AdvancedAimSystemWithESP.lua
--- Sistema completo de Auto-Aim com GUI elaborada e ESP
+-- Sistema completo de Auto-Aim com GUI elaborada, ESP, No Recoil e Trajetória Reta
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -10,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- CONFIGURAÇÕES DO SISTEM
+-- CONFIGURAÇÕES DO SISTEMA
 local AimSettings = {
     -- Controles
     AimKey = Enum.KeyCode.E,
@@ -48,6 +48,18 @@ local AimSettings = {
         LineColor = Color3.fromRGB(0, 255, 0),
         TextColor = Color3.fromRGB(255, 255, 255),
         MaxDistance = 1000
+    },
+    
+    -- Novas configurações adicionadas
+    NoRecoil = {
+        Enabled = false,
+        Strength = 1.0
+    },
+    
+    BulletTrajectory = {
+        Enabled = false,
+        ForceStraight = false,
+        GravityOverride = 0
     }
 }
 
@@ -422,6 +434,174 @@ local function applyAiming(targetData)
         local newCFrame = CFrame.lookAt(currentCFrame.Position, currentCFrame.Position + lerpedDirection)
         camera.CFrame = newCFrame
     end)
+end
+
+-- SISTEMA DE NO RECOIL
+local function setupNoRecoil()
+    if not AimSettings.NoRecoil.Enabled then return end
+    
+    local function findWeaponSystem()
+        -- Tentar encontrar no character
+        if localPlayer.Character then
+            local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                local weapon = humanoid:FindFirstChild("Weapon") or humanoid:FindFirstChild("Gun")
+                if weapon then
+                    return weapon
+                end
+            end
+        end
+        
+        -- Tentar encontrar no ReplicatedStorage
+        local weaponSystem = ReplicatedStorage:FindFirstChild("WeaponSystem") or ReplicatedStorage:FindFirstChild("GunScript")
+        if weaponSystem then
+            return weaponSystem
+        end
+        
+        -- Tentar encontrar no LocalPlayer
+        local playerScripts = localPlayer:FindFirstChild("PlayerScripts")
+        if playerScripts then
+            weaponSystem = playerScripts:FindFirstChild("WeaponSystem") or playerScripts:FindFirstChild("GunScript")
+            if weaponSystem then
+                return weaponSystem
+            end
+        end
+        
+        return nil
+    end
+    
+    local weaponSystem = findWeaponSystem()
+    
+    if weaponSystem then
+        -- Função para modificar o recoil
+        local function modifyRecoil(originalFunction, ...)
+            if AimSettings.NoRecoil.Enabled then
+                local args = {...}
+                
+                -- Reduzir o recoil baseado na força configurada
+                if type(args[1]) == "number" then
+                    args[1] = args[1] * (1 - AimSettings.NoRecoil.Strength)
+                elseif typeof(args[1]) == "Vector3" then
+                    args[1] = args[1] * (1 - AimSettings.NoRecoil.Strength)
+                end
+                
+                return originalFunction(unpack(args))
+            else
+                return originalFunction(...)
+            end
+        end
+        
+        -- Tentar encontrar e substituir funções de recoil
+        local recoilFunctions = {
+            "ApplyRecoil",
+            "addRecoil",
+            "FireWeapon",
+            "Shoot",
+            "OnFire"
+        }
+        
+        for _, funcName in ipairs(recoilFunctions) do
+            local func = weaponSystem[funcName]
+            if func and typeof(func) == "function" then
+                weaponSystem[funcName] = function(...)
+                    return modifyRecoil(func, ...)
+                end
+                print("[NoRecoil] Função " .. funcName .. " modificada com sucesso!")
+            end
+        end
+        
+        print("[NoRecoil] Sistema configurado com sucesso!")
+    else
+        warn("[NoRecoil] Não foi possível encontrar o sistema de armas. O No Recoil não funcionará.")
+    end
+end
+
+-- SISTEMA DE TRAJETÓRIA DE BALA
+local function setupBulletTrajectory()
+    if not AimSettings.BulletTrajectory.Enabled and not AimSettings.BulletTrajectory.ForceStraight then return end
+    
+    local function findWeaponSystem()
+        -- Tentar encontrar no character
+        if localPlayer.Character then
+            local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                local weapon = humanoid:FindFirstChild("Weapon") or humanoid:FindFirstChild("Gun")
+                if weapon then
+                    return weapon
+                end
+            end
+        end
+        
+        -- Tentar encontrar no ReplicatedStorage
+        local weaponSystem = ReplicatedStorage:FindFirstChild("WeaponSystem") or ReplicatedStorage:FindFirstChild("GunScript")
+        if weaponSystem then
+            return weaponSystem
+        end
+        
+        -- Tentar encontrar no LocalPlayer
+        local playerScripts = localPlayer:FindFirstChild("PlayerScripts")
+        if playerScripts then
+            weaponSystem = playerScripts:FindFirstChild("WeaponSystem") or playerScripts:FindFirstChild("GunScript")
+            if weaponSystem then
+                return weaponSystem
+            end
+        end
+        
+        return nil
+    end
+    
+    local weaponSystem = findWeaponSystem()
+    
+    if weaponSystem then
+        -- Função para modificar a trajetória
+        local function modifyTrajectory(originalFunction, ...)
+            if AimSettings.BulletTrajectory.ForceStraight or AimSettings.BulletTrajectory.GravityOverride ~= 0 then
+                local args = {...}
+                
+                -- Modificar a gravidade da bala
+                if type(args[1]) == "table" then
+                    if AimSettings.BulletTrajectory.ForceStraight then
+                        args[1].Gravity = Vector3.new(0, 0, 0)
+                    else
+                        args[1].Gravity = Vector3.new(0, AimSettings.BulletTrajectory.GravityOverride, 0)
+                    end
+                elseif typeof(args[1]) == "Instance" and args[1]:IsA("BasePart") then
+                    if AimSettings.BulletTrajectory.ForceStraight then
+                        args[1].AssemblyLinearVelocity = args[1].AssemblyLinearVelocity * Vector3.new(1, 0, 1).Unit * args[1].AssemblyLinearVelocity.Magnitude
+                    else
+                        args[1].AssemblyLinearVelocity = args[1].AssemblyLinearVelocity + Vector3.new(0, AimSettings.BulletTrajectory.GravityOverride, 0)
+                    end
+                end
+                
+                return originalFunction(unpack(args))
+            else
+                return originalFunction(...)
+            end
+        end
+        
+        -- Tentar encontrar e substituir funções de disparo
+        local fireFunctions = {
+            "Fire",
+            "Shoot",
+            "FireWeapon",
+            "OnFire",
+            "CreateBullet"
+        }
+        
+        for _, funcName in ipairs(fireFunctions) do
+            local func = weaponSystem[funcName]
+            if func and typeof(func) == "function" then
+                weaponSystem[funcName] = function(...)
+                    return modifyTrajectory(func, ...)
+                end
+                print("[BulletTrajectory] Função " .. funcName .. " modificada com sucesso!")
+            end
+        end
+        
+        print("[BulletTrajectory] Sistema configurado com sucesso!")
+    else
+        warn("[BulletTrajectory] Não foi possível encontrar o sistema de armas. A modificação de trajetória não funcionará.")
+    end
 end
 
 -- CRIAÇÃO DA GUI AVANÇADA
@@ -1011,6 +1191,29 @@ local function createAdvancedGUI()
         AimSettings.WallCheck = val
     end)
     
+    -- Novas configurações adicionadas
+    createToggle(aimTab, "Sem Recoil", AimSettings.NoRecoil.Enabled, function(val)
+        AimSettings.NoRecoil.Enabled = val
+        setupNoRecoil()
+        print("[NoRecoil]", val and "Ativado" or "Desativado")
+    end)
+    
+    createSlider(aimTab, "Força Sem Recoil", 1, 100, math.floor(AimSettings.NoRecoil.Strength * 100), function(val)
+        AimSettings.NoRecoil.Strength = val / 100
+    end)
+    
+    createToggle(aimTab, "Trajetória Reta", AimSettings.BulletTrajectory.ForceStraight, function(val)
+        AimSettings.BulletTrajectory.ForceStraight = val
+        setupBulletTrajectory()
+        print("[BulletTrajectory] Trajetória reta:", val and "Ativada" or "Desativada")
+    end)
+    
+    createSlider(aimTab, "Gravidade da Bala", -50, 50, math.floor(AimSettings.BulletTrajectory.GravityOverride * 100), function(val)
+        AimSettings.BulletTrajectory.GravityOverride = val / 100
+        setupBulletTrajectory()
+        print("[BulletTrajectory] Gravidade definida para:", AimSettings.BulletTrajectory.GravityOverride)
+    end)
+    
     -- TAB ESP
     createSection(espTab, "👁️ CONFIGURAÇÕES DO ESP")
     
@@ -1292,6 +1495,10 @@ local function initializeSystem()
     -- Configurar input
     setupInputHandling()
     
+    -- Configurar No Recoil e Trajetória de Bala
+    setupNoRecoil()
+    setupBulletTrajectory()
+    
     -- Setup ESP
     SystemState.connections.playerAdded = Players.PlayerAdded:Connect(function(player)
         player.CharacterAdded:Connect(function()
@@ -1391,6 +1598,29 @@ function AdvancedAPI:SetESPDistance(distance)
     print("[API] Nova distância ESP:", AimSettings.ESP.MaxDistance)
 end
 
+function AdvancedAPI:ToggleNoRecoil(enabled)
+    AimSettings.NoRecoil.Enabled = enabled
+    setupNoRecoil()
+    print("[API] No Recoil:", enabled and "Ativado" or "Desativado")
+end
+
+function AdvancedAPI:SetNoRecoilStrength(strength)
+    AimSettings.NoRecoil.Strength = math.clamp(strength, 0, 1)
+    print("[API] Força No Recoil:", AimSettings.NoRecoil.Strength)
+end
+
+function AdvancedAPI:ToggleStraightBullet(enabled)
+    AimSettings.BulletTrajectory.ForceStraight = enabled
+    setupBulletTrajectory()
+    print("[API] Trajetória reta:", enabled and "Ativada" or "Desativada")
+end
+
+function AdvancedAPI:SetBulletGravity(gravity)
+    AimSettings.BulletTrajectory.GravityOverride = gravity
+    setupBulletTrajectory()
+    print("[API] Gravidade da bala:", AimSettings.BulletTrajectory.GravityOverride)
+end
+
 function AdvancedAPI:GetCurrentTarget()
     return SystemState.currentTarget
 end
@@ -1416,6 +1646,8 @@ function AdvancedAPI:PrintCommands()
     print("_G.AdvancedAPI:SetFOVRadius(200) -- Mudar FOV")
     print("_G.AdvancedAPI:SetMaxDistance(800) -- Mudar distância")
     print("_G.AdvancedAPI:ToggleESP(true) -- Ativar/Desativar ESP")
+    print("_G.AdvancedAPI:ToggleNoRecoil(true) -- Ativar/Desativar No Recoil")
+    print("_G.AdvancedAPI:ToggleStraightBullet(true) -- Ativar/Desativar trajetória reta")
     print("_G.AdvancedAPI:GetCurrentTarget() -- Ver alvo atual")
     print("_G.AdvancedAPI:GetSettings() -- Ver todas configurações")
     print("_G.AdvancedAPI:Shutdown() -- Fechar sistema")
@@ -1437,6 +1669,8 @@ if initializeSystem() then
     print("   • Modo:", AimSettings.AimMode)
     print("   • FOV:", AimSettings.FOVRadius)
     print("   • Distância máxima:", AimSettings.MaxDistance)
+    print("   • No Recoil:", AimSettings.NoRecoil.Enabled and "Ativado" or "Desativado")
+    print("   • Trajetória reta:", AimSettings.BulletTrajectory.ForceStraight and "Ativada" or "Desativada")
     print("===========================================")
     
     -- Comandos de teste automático
