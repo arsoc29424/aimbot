@@ -1,62 +1,67 @@
--- aimbot.lua
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-
 local Aimbot = {}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local RunService = game:GetService("RunService")
+
+function Aimbot.UpdateFOV(fov)
+    print("[AIMBOT] FOV atualizado para:", fov)
+    Aimbot.FOV = fov
+end
+
+Aimbot.FOV = 90
 Aimbot.Enabled = false
-Aimbot.FOV = 90 -- padrão (depois ajustar pela UI)
 
-function Aimbot:GetClosestTarget()
+local function findClosestPlayer()
     local closestPlayer = nil
-    local closestDistance = math.huge
-    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-
+    local shortestDistance = Aimbot.FOV
+    
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).magnitude
-                    if distance <= self.FOV and distance < closestDistance then
-                        closestDistance = distance
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local head = player.Character:FindFirstChild("Head")
+            
+            if humanoid and humanoid.Health > 0 and head then
+                local screenPoint, visible = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if visible then
+                    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+                    local pointPos = Vector2.new(screenPoint.X, screenPoint.Y)
+                    local distance = (mousePos - pointPos).Magnitude
+                    
+                    if distance < shortestDistance then
                         closestPlayer = player
+                        shortestDistance = distance
                     end
                 end
             end
         end
     end
-
+    
     return closestPlayer
 end
 
-function Aimbot:AimAt(target)
+local function aimAt(target)
     if not target or not target.Character then return end
-    local rootPart = target.Character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-
-    -- 0 smooth = trava direto a mira no alvo
-    Camera.CFrame = CFrame.new(Camera.CFrame.Position, rootPart.Position)
+    local head = target.Character:FindFirstChild("Head")
+    if not head then return end
+    
+    local camera = workspace.CurrentCamera
+    camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
 end
 
-function Aimbot:Start()
-    self.Connection = RunService.RenderStepped:Connect(function()
-        if not self.Enabled then return end
-
-        local target = self:GetClosestTarget()
-        if target then
-            self:AimAt(target)
-        end
-    end)
-end
-
-function Aimbot:Stop()
-    if self.Connection then
-        self.Connection:Disconnect()
-        self.Connection = nil
+RunService.Heartbeat:Connect(function()
+    if not Aimbot.Enabled then return end
+    
+    local closest = findClosestPlayer()
+    if closest then
+        aimAt(closest)
     end
+end)
+
+function Aimbot.Toggle(state)
+    Aimbot.Enabled = state
+    print("[AIMBOT] Estado:", state and "ATIVADO" or "DESATIVADO")
 end
 
 return Aimbot
