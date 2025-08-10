@@ -600,11 +600,28 @@ ui:ShowPage("Aim Assist")
 local aimbotCheckbox = ui:CreateCheckboxOption(aimPage, "Enable Aimbot", function(checked)
     if checked then
         ui.LoadedScripts.aimbot = loadScript("aimbot.lua")
-        print("Aimbot carregado:", ui.LoadedScripts.aimbot ~= nil)
+        if ui.LoadedScripts.aimbot then
+            ui.LoadedScripts.aimbot.Toggle(true)
+        end
     else
-        unloadScript("aimbot.lua")
+        if ui.LoadedScripts.aimbot then
+            ui.LoadedScripts.aimbot.Toggle(false)
+        end
         ui.LoadedScripts.aimbot = nil
-        print("Aimbot descarregado")
+    end
+end)
+
+local autoFireCheckbox = ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
+    if checked then
+        ui.LoadedScripts.auto_fire = loadScript("auto_fire.lua")
+        if ui.LoadedScripts.auto_fire then
+            ui.LoadedScripts.auto_fire.Toggle(true)
+        end
+    else
+        if ui.LoadedScripts.auto_fire then
+            ui.LoadedScripts.auto_fire.Toggle(false)
+        end
+        ui.LoadedScripts.auto_fire = nil
     end
 end)
 
