@@ -49,6 +49,39 @@ local function tween(object, properties, duration, style)
     return tween
 end
 
+-- Script Loading Functions
+local function loadScript(scriptName)
+    local success, err = pcall(function()
+        local scriptPath = scriptName
+        if not scriptPath:match(".lua$") then
+            scriptPath = scriptPath .. ".lua"
+        end
+        
+        if not isfile(scriptPath) then
+            error("Arquivo não encontrado: " .. scriptPath)
+        end
+        
+        local scriptContent = readfile(scriptPath)
+        local loadedFunction = loadstring(scriptContent)
+        if loadedFunction then
+            return loadedFunction()
+        else
+            error("Falha ao carregar o script: " .. scriptPath)
+        end
+    end)
+    
+    if not success then
+        warn("Erro ao carregar " .. scriptName .. ": " .. err)
+        return nil
+    end
+    return success
+end
+
+local function unloadScript(scriptName)
+    -- Implemente aqui a lógica para descarregar o script, se necessário
+    print("Script descarregado: " .. scriptName)
+end
+
 -- Main UI Creation
 local ModernUI = {}
 ModernUI.__index = ModernUI
@@ -61,6 +94,7 @@ function ModernUI.new(title)
     self.ActivePage = nil
     self.Pages = {}
     self.Components = {}
+    self.LoadedScripts = {}
     
     self:CreateMainWindow(title)
     self:SetupDragging()
@@ -209,7 +243,6 @@ function ModernUI:CreateTab(name)
         Parent = button
     })
     
-    -- Hover effects
     button.MouseEnter:Connect(function()
         tween(button, {BackgroundColor3 = COLOR.BUTTON_HOVER})
     end)
@@ -230,7 +263,6 @@ function ModernUI:CreatePage(name)
         Parent = self.ContentFrame
     })
     
-    -- Setup layout for the page
     create("UIListLayout", {
         Parent = page,
         Padding = UDim.new(0, 10),
@@ -343,16 +375,16 @@ function ModernUI:CreateColorPicker(parent, initialColor, callback)
     })
     
     local colors = {
-        Color3.fromRGB(255, 0, 0),    -- Red
-        Color3.fromRGB(0, 255, 0),    -- Green
-        Color3.fromRGB(0, 0, 255),    -- Blue
-        Color3.fromRGB(255, 255, 0),  -- Yellow
-        Color3.fromRGB(255, 0, 255),  -- Magenta
-        Color3.fromRGB(0, 255, 255),  -- Cyan
-        Color3.fromRGB(255, 255, 255),-- White
-        Color3.fromRGB(128, 128, 128),-- Gray
-        Color3.fromRGB(255, 165, 0),  -- Orange
-        Color3.fromRGB(75, 0, 130)    -- Indigo
+        Color3.fromRGB(255, 0, 0),
+        Color3.fromRGB(0, 255, 0),
+        Color3.fromRGB(0, 0, 255),
+        Color3.fromRGB(255, 255, 0),
+        Color3.fromRGB(255, 0, 255),
+        Color3.fromRGB(0, 255, 255),
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(128, 128, 128),
+        Color3.fromRGB(255, 165, 0),
+        Color3.fromRGB(75, 0, 130)
     }
     
     local currentIndex = 1
@@ -557,20 +589,44 @@ ui:ShowPage("Aim Assist")
 
 -- Add content to pages
 -- Aim Assist Page
-ui:CreateCheckboxOption(aimPage, "Enable Aimbot", function(checked)
-    print("Aimbot:", checked)
+local aimbotCheckbox = ui:CreateCheckboxOption(aimPage, "Enable Aimbot", function(checked)
+    if checked then
+        ui.LoadedScripts.aimbot = loadScript("aimbot.lua")
+        print("Aimbot carregado:", ui.LoadedScripts.aimbot ~= nil)
+    else
+        unloadScript("aimbot.lua")
+        ui.LoadedScripts.aimbot = nil
+        print("Aimbot descarregado")
+    end
 end)
 
-ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
-    print("Auto Fire:", checked)
+local autoFireCheckbox = ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
+    if checked then
+        ui.LoadedScripts.auto_fire = loadScript("auto_fire.lua")
+        print("Auto Fire carregado:", ui.LoadedScripts.auto_fire ~= nil)
+    else
+        unloadScript("auto_fire.lua")
+        ui.LoadedScripts.auto_fire = nil
+        print("Auto Fire descarregado")
+    end
 end)
 
-ui:CreateCheckboxOption(aimPage, "Check Wall", function(checked)
-    print("Check Wall:", checked)
+local checkWallCheckbox = ui:CreateCheckboxOption(aimPage, "Check Wall", function(checked)
+    if checked then
+        ui.LoadedScripts.check_wall = loadScript("check_wall.lua")
+        print("Check Wall carregado:", ui.LoadedScripts.check_wall ~= nil)
+    else
+        unloadScript("check_wall.lua")
+        ui.LoadedScripts.check_wall = nil
+        print("Check Wall descarregado")
+    end
 end)
 
-ui:CreateSlider(aimPage, "Aimbot FOV", 1, 360, 90, function(value)
+local fovSlider = ui:CreateSlider(aimPage, "Aimbot FOV", 1, 360, 90, function(value)
     print("Aimbot FOV:", value)
+    if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.UpdateFOV then
+        ui.LoadedScripts.aimbot.UpdateFOV(value)
+    end
 end)
 
 -- Visual Page
@@ -585,5 +641,5 @@ end
 
 -- Misc Page
 ui:CreateCheckboxOption(miscPage, "Bunny Hop", function(checked)
-    print("Auto Reload:", checked)
+    print("Bunny Hop:", checked)
 end)
