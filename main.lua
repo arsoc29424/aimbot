@@ -6,50 +6,66 @@ ScreenGui.Name = "ModernUI"
 -- Criar Frame principal
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
-MainFrame.Size = UDim2.new(0, 500, 0, 300)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 520, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
 
--- Canto arredondado
+-- Canto arredondado principal
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.CornerRadius = UDim.new(0, 12)
 UICorner.Parent = MainFrame
 
 -- Criar barra lateral
 local SideBar = Instance.new("Frame")
 SideBar.Parent = MainFrame
-SideBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-SideBar.Size = UDim2.new(0, 120, 1, 0)
+SideBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+SideBar.Size = UDim2.new(0, 130, 1, 0)
 SideBar.BorderSizePixel = 0
 
+-- Canto arredondado da barra
 local SideCorner = Instance.new("UICorner")
-SideCorner.CornerRadius = UDim.new(0, 10)
+SideCorner.CornerRadius = UDim.new(0, 12)
 SideCorner.Parent = SideBar
+
+-- Padding interno na barra lateral
+local UIPadding = Instance.new("UIPadding")
+UIPadding.Parent = SideBar
+UIPadding.PaddingTop = UDim.new(0, 10)
+UIPadding.PaddingLeft = UDim.new(0, 8)
+UIPadding.PaddingRight = UDim.new(0, 8)
 
 -- Layout da barra lateral
 local SideLayout = Instance.new("UIListLayout")
 SideLayout.Parent = SideBar
 SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SideLayout.Padding = UDim.new(0, 5)
+SideLayout.Padding = UDim.new(0, 8)
 
 -- Função para criar botão da aba
 local function CreateTab(name)
     local Button = Instance.new("TextButton")
-    Button.Parent = SideBar
-    Button.Size = UDim2.new(1, -10, 0, 40)
-    Button.Position = UDim2.new(0, 5, 0, 0)
+    Button.Size = UDim2.new(1, 0, 0, 38)
     Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     Button.TextColor3 = Color3.fromRGB(255, 255, 255)
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 14
     Button.Text = name
     Button.BorderSizePixel = 0
+    Button.AutoButtonColor = false
+
+    -- Efeito de hover
+    Button.MouseEnter:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end)
+    Button.MouseLeave:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    end)
 
     local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.CornerRadius = UDim.new(0, 8)
     BtnCorner.Parent = Button
 
+    Button.Parent = SideBar
     return Button
 end
 
@@ -62,12 +78,11 @@ local MiscTab = CreateTab("Misc")
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Parent = MainFrame
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.Position = UDim2.new(0, 130, 0, 0)
-ContentFrame.Size = UDim2.new(1, -130, 1, 0)
+ContentFrame.Position = UDim2.new(0, 140, 0, 0)
+ContentFrame.Size = UDim2.new(1, -140, 1, 0)
 
 -- Criar páginas
 local Pages = {}
-
 local function CreatePage(name)
     local Page = Instance.new("Frame")
     Page.Parent = ContentFrame
@@ -109,10 +124,10 @@ end)
 local Title = Instance.new("TextLabel")
 Title.Parent = AimPage
 Title.Text = "Configurações de Aim Assist"
-Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Size = UDim2.new(1, -20, 0, 40)
+Title.Position = UDim2.new(0, 10, 0, 10)
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Position = UDim2.new(0, 10, 0, 10)
