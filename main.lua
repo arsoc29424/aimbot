@@ -584,10 +584,6 @@ espOption.Checkbox.Toggle = function()
 end
 
 -- Misc Page
-ui:CreateCheckboxOption(miscPage, "Auto Reload", function(checked)
+ui:CreateCheckboxOption(miscPage, "Bunny Hop", function(checked)
     print("Auto Reload:", checked)
-end)
-
-ui:CreateSlider(miscPage, "Volume", 0, 100, 50, function(value)
-    print("Volume:", value)
 end)
