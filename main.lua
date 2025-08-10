@@ -3,12 +3,10 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Criar ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ModernUI"
 ScreenGui.Parent = PlayerGui
 
--- Frame principal
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 520, 0, 360)
 MainFrame.Position = UDim2.new(0.5, -260, 0.5, -180)
@@ -20,7 +18,6 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 12)
 UICorner.Parent = MainFrame
 
--- Título
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 36)
 TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -41,7 +38,6 @@ TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
--- Função para permitir arrastar o frame
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -77,7 +73,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Barra lateral
 local SideBar = Instance.new("Frame")
 SideBar.Size = UDim2.new(0, 130, 1, -36)
 SideBar.Position = UDim2.new(0, 0, 0, 36)
@@ -100,7 +95,6 @@ SideLayout.Parent = SideBar
 SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SideLayout.Padding = UDim.new(0, 8)
 
--- Função para criar abas laterais
 local function CreateTab(name)
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(1, 0, 0, 38)
@@ -127,19 +121,16 @@ local function CreateTab(name)
     return Button
 end
 
--- Criar abas
 local AimAssistTab = CreateTab("Aim Assist")
 local VisualTab = CreateTab("Visual")
 local MiscTab = CreateTab("Misc")
 
--- Frame de conteúdo
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, -130, 1, -36)
 ContentFrame.Position = UDim2.new(0, 130, 0, 36)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
--- Sistema de páginas
 local Pages = {}
 local function CreatePage(name)
     local Page = Instance.new("Frame")
@@ -177,7 +168,7 @@ end)
 -- Função para criar checkbox estilizado
 local function CreateCheckboxOption(parent, text)
     local OptionFrame = Instance.new("Frame")
-    OptionFrame.Size = UDim2.new(0, 200, 0, 24)
+    OptionFrame.Size = UDim2.new(0, 220, 0, 24)
     OptionFrame.BackgroundTransparency = 1
     OptionFrame.Parent = parent
 
@@ -262,7 +253,6 @@ local function CreateColorPicker(parent, initialColor)
     return PickerFrame, function() return PickerFrame.BackgroundColor3 end
 end
 
--- Layout e padding para as páginas
 local function SetupPageLayout(page)
     local layout = Instance.new("UIListLayout")
     layout.Parent = page
@@ -278,13 +268,11 @@ local function SetupPageLayout(page)
     return layout
 end
 
--- Setup Aim Assist aba (igual do código anterior, com checkboxes)
 SetupPageLayout(AimPage)
 CreateCheckboxOption(AimPage, "Aimbot")
 CreateCheckboxOption(AimPage, "AutoFire")
 CreateCheckboxOption(AimPage, "Check Wall")
 
--- Setup Visual aba
 SetupPageLayout(VisualPage)
 
 local function CreateColorOption(parent, label)
@@ -297,7 +285,7 @@ local function CreateColorOption(parent, label)
     checkbox.Position = UDim2.new(0, 0, 0, 0)
 
     local colorPicker, getColor = CreateColorPicker(container)
-    colorPicker.Position = UDim2.new(0, 150, 0, 2)
+    colorPicker.Position = UDim2.new(0, 160, 0, 2)
 
     return {
         Checkbox = checkbox,
@@ -310,6 +298,6 @@ end
 local esp = CreateColorOption(VisualPage, "ESP")
 local espBox = CreateColorOption(VisualPage, "ESP BOX")
 local espLine = CreateColorOption(VisualPage, "ESP LINE")
-local checkWall = CreateCheckboxOption(VisualPage, "Check Wall")
+local checkWall, checkWallGetter = CreateCheckboxOption(VisualPage, "Check Wall")
+checkWall.Position = UDim2.new(0, 0, 0, 0)
 
--- Pronto, o menu está configurado.
