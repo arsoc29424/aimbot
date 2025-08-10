@@ -1,670 +1,148 @@
 -- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
--- Constants
-local COLOR = {
-    BACKGROUND = Color3.fromRGB(20, 20, 20),
-    TITLEBAR = Color3.fromRGB(30, 30, 30),
-    BUTTON = Color3.fromRGB(45, 45, 45),
-    BUTTON_HOVER = Color3.fromRGB(60, 60, 60),
-    TEXT = Color3.fromRGB(255, 255, 255),
-    CHECKBOX = Color3.fromRGB(60, 60, 60)
-}
+local localPlayer = Players.LocalPlayer
+local mouse = localPlayer:GetMouse()
 
-local FONT = {
-    TITLE = Enum.Font.GothamBold,
-    BUTTON = Enum.Font.GothamBold,
-    TEXT = Enum.Font.Gotham
-}
+-- Configurações
+local aimbotEnabled = false
+local autofireEnabled = false
+local aimKey = Enum.KeyCode.CapsLock
 
-local SIZES = {
-    WINDOW = UDim2.new(0, 520, 0, 360),
-    TITLEBAR = UDim2.new(1, 0, 0, 36),
-    SIDEBAR = UDim2.new(0, 130, 1, -36),
-    BUTTON = UDim2.new(1, 0, 0, 38)
-}
+-- GUI simples com Dropdown para ativar/desativar aimbot e autofire
+local ScreenGui = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "AimbotGui"
 
-local CORNER_RADIUS = {
-    WINDOW = 12,
-    BUTTON = 8,
-    CHECKBOX = 4,
-    COLOR_PICKER = 6
-}
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Position = UDim2.new(0, 10, 0, 10)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
 
--- Utility Functions
-local function create(class, props)
-    local instance = Instance.new(class)
-    for prop, value in pairs(props) do
-        instance[prop] = value
-    end
-    return instance
-end
+local TextLabel = Instance.new("TextLabel", Frame)
+TextLabel.Size = UDim2.new(1, 0, 0, 30)
+TextLabel.BackgroundTransparency = 1
+TextLabel.Text = "Ativar Aimbot:"
+TextLabel.TextColor3 = Color3.new(1,1,1)
+TextLabel.Font = Enum.Font.SourceSansBold
+TextLabel.TextSize = 18
+TextLabel.Position = UDim2.new(0, 0, 0, 0)
 
-local function tween(object, properties, duration, style)
-    local tweenInfo = TweenInfo.new(duration or 0.2, style or Enum.EasingStyle.Quad)
-    local tween = TweenService:Create(object, tweenInfo, properties)
-    tween:Play()
-    return tween
-end
+local Dropdown = Instance.new("TextButton", Frame)
+Dropdown.Size = UDim2.new(1, -20, 0, 30)
+Dropdown.Position = UDim2.new(0, 10, 0, 40)
+Dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Dropdown.TextColor3 = Color3.new(1,1,1)
+Dropdown.Font = Enum.Font.SourceSans
+Dropdown.TextSize = 16
+Dropdown.Text = "Desativado"
 
--- Script Loading Functions
-local function loadScript(scriptName)
-    print(`[DEBUG] Tentando carregar: {scriptName}`)
-    local success, result = pcall(function()
-        local scriptPath = scriptName
-        if not scriptPath:match(".lua$") then
-            scriptPath = scriptPath .. ".lua"
-        end
-        
-        if not isfile(scriptPath) then
-            error(`Arquivo não encontrado: {scriptPath}`)
-        end
-        
-        print(`[DEBUG] Lendo arquivo: {scriptPath}`)
-        local scriptContent = readfile(scriptPath)
-        print(`[DEBUG] Tamanho do script: {#scriptContent} bytes`)
-        
-        print(`[DEBUG] Compilando script...`)
-        local loadedFunction, compileError = loadstring(scriptContent, scriptName)
-        if not loadedFunction then
-            error(`Erro de compilação: {compileError}`)
-        end
-        
-        print(`[DEBUG] Executando script...`)
-        return loadedFunction()
-    end)
-    
-    if success then
-        print(`[SUCESSO] Script {scriptName} carregado com sucesso!`)
-        return result
-    else
-        warn(`[ERRO] Falha ao carregar {scriptName}: {result}`)
-        return nil
-    end
-end
+local options = {"Desativado", "Aimbot + Autofire"}
+local dropdownOpen = false
 
-local function unloadScript(scriptName)
-    -- Implemente aqui a lógica para descarregar o script, se necessário
-    print("Script descarregado: " .. scriptName)
-end
+Dropdown.MouseButton1Click:Connect(function()
+    dropdownOpen = not dropdownOpen
+    if dropdownOpen then
+        local list = Instance.new("Frame", Frame)
+        list.Name = "List"
+        list.BackgroundColor3 = Color3.fromRGB(50,50,50)
+        list.Size = UDim2.new(1, -20, 0, #options * 30)
+        list.Position = UDim2.new(0, 10, 0, 70)
 
--- Main UI Creation
-local ModernUI = {}
-ModernUI.__index = ModernUI
+        for i, option in ipairs(options) do
+            local btn = Instance.new("TextButton", list)
+            btn.Size = UDim2.new(1, 0, 0, 30)
+            btn.Position = UDim2.new(0, 0, 0, (i-1)*30)
+            btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            btn.TextColor3 = Color3.new(1,1,1)
+            btn.Font = Enum.Font.SourceSans
+            btn.TextSize = 16
+            btn.Text = option
 
-function ModernUI.new(title)
-    local self = setmetatable({}, ModernUI)
-    
-    self.LocalPlayer = Players.LocalPlayer
-    self.PlayerGui = self.LocalPlayer:WaitForChild("PlayerGui")
-    self.ActivePage = nil
-    self.Pages = {}
-    self.Components = {}
-    self.LoadedScripts = {}
-    
-    self:CreateMainWindow(title)
-    self:SetupDragging()
-    self:CreateSidebar()
-    
-    return self
-end
-
-function ModernUI:CreateMainWindow(title)
-    -- ScreenGui
-    self.ScreenGui = create("ScreenGui", {
-        Name = "ModernUI",
-        Parent = self.PlayerGui,
-        ResetOnSpawn = false
-    })
-    
-    -- Main Window Frame
-    self.MainFrame = create("Frame", {
-        Size = SIZES.WINDOW,
-        Position = UDim2.new(0.5, -260, 0.5, -180),
-        BackgroundColor3 = COLOR.BACKGROUND,
-        BorderSizePixel = 0,
-        Parent = self.ScreenGui
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.WINDOW),
-        Parent = self.MainFrame
-    })
-    
-    -- Title Bar
-    self.TitleBar = create("Frame", {
-        Size = SIZES.TITLEBAR,
-        BackgroundColor3 = COLOR.TITLEBAR,
-        Parent = self.MainFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.WINDOW),
-        Parent = self.TitleBar
-    })
-    
-    self.TitleLabel = create("TextLabel", {
-        Size = UDim2.new(1, -20, 1, 0),
-        Position = UDim2.new(0, 10, 0, 0),
-        BackgroundTransparency = 1,
-        Text = title or "Modern GUI",
-        Font = FONT.TITLE,
-        TextSize = 18,
-        TextColor3 = COLOR.TEXT,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = self.TitleBar
-    })
-    
-    -- Content Area
-    self.ContentFrame = create("Frame", {
-        Size = UDim2.new(1, -130, 1, -36),
-        Position = UDim2.new(0, 130, 0, 36),
-        BackgroundTransparency = 1,
-        Parent = self.MainFrame
-    })
-end
-
-function ModernUI:SetupDragging()
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        self.MainFrame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-
-    self.TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.MainFrame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+            btn.MouseButton1Click:Connect(function()
+                Dropdown.Text = option
+                aimbotEnabled = (option ~= "Desativado")
+                autofireEnabled = aimbotEnabled -- os dois ativam juntos
+                dropdownOpen = false
+                list:Destroy()
             end)
         end
-    end)
-
-    self.TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
+    else
+        local list = Frame:FindFirstChild("List")
+        if list then
+            list:Destroy()
         end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
-end
-
-function ModernUI:CreateSidebar()
-    self.SideBar = create("Frame", {
-        Size = SIZES.SIDEBAR,
-        Position = UDim2.new(0, 0, 0, 36),
-        BackgroundColor3 = COLOR.TITLEBAR,
-        BorderSizePixel = 0,
-        Parent = self.MainFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.WINDOW),
-        Parent = self.SideBar
-    })
-    
-    create("UIPadding", {
-        PaddingTop = UDim.new(0, 10),
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        Parent = self.SideBar
-    })
-    
-    create("UIListLayout", {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 8),
-        Parent = self.SideBar
-    })
-end
-
-function ModernUI:CreateTab(name)
-    local button = create("TextButton", {
-        Size = SIZES.BUTTON,
-        BackgroundColor3 = COLOR.BUTTON,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.BUTTON,
-        TextSize = 14,
-        Text = name,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Parent = self.SideBar
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.BUTTON),
-        Parent = button
-    })
-    
-    button.MouseEnter:Connect(function()
-        tween(button, {BackgroundColor3 = COLOR.BUTTON_HOVER})
-    end)
-    
-    button.MouseLeave:Connect(function()
-        tween(button, {BackgroundColor3 = COLOR.BUTTON})
-    end)
-    
-    return button
-end
-
-function ModernUI:CreatePage(name)
-    local page = create("Frame", {
-        Size = UDim2.new(1, 0, 1, 0),
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1,
-        Visible = false,
-        Parent = self.ContentFrame
-    })
-    
-    create("UIListLayout", {
-        Parent = page,
-        Padding = UDim.new(0, 10),
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        VerticalAlignment = Enum.VerticalAlignment.Top
-    })
-    
-    create("UIPadding", {
-        Parent = page,
-        PaddingTop = UDim.new(0, 25),
-        PaddingLeft = UDim.new(0, 15)
-    })
-    
-    self.Pages[name] = page
-    return page
-end
-
-function ModernUI:ShowPage(name)
-    if self.ActivePage then
-        self.ActivePage.Visible = false
     end
-    
-    self.ActivePage = self.Pages[name]
-    if self.ActivePage then
-        self.ActivePage.Visible = true
-    end
-end
+end)
 
-function ModernUI:CreateCheckboxOption(parent, text, callback)
-    local optionFrame = create("Frame", {
-        Size = UDim2.new(0, 220, 0, 24),
-        BackgroundTransparency = 1,
-        Parent = parent
-    })
-    
-    local box = create("Frame", {
-        Size = UDim2.new(0, 20, 0, 20),
-        Position = UDim2.new(0, 0, 0, 2),
-        BackgroundColor3 = COLOR.CHECKBOX,
-        BorderSizePixel = 0,
-        Parent = optionFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.CHECKBOX),
-        Parent = box
-    })
-    
-    local check = create("TextLabel", {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TITLE,
-        TextSize = 16,
-        Text = "",
-        Parent = box
-    })
-    
-    local label = create("TextLabel", {
-        Size = UDim2.new(1, -28, 1, 0),
-        Position = UDim2.new(0, 28, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TEXT,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = text,
-        Parent = optionFrame
-    })
-    
-    local checked = false
-    
-    local function toggle()
-        checked = not checked
-        check.Text = checked and "✓" or ""
-        if callback then
-            callback(checked)
-        end
-        return checked
-    end
-    
-    optionFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            toggle()
-        end
-    end)
-    
-    return {
-        Frame = optionFrame,
-        Toggle = toggle,
-        IsChecked = function() return checked end,
-        SetChecked = function(value)
-            checked = value
-            check.Text = checked and "✓" or ""
-        end
-    }
-end
+-- Função para encontrar o alvo mais próximo no campo de visão (FOV)
+local function getClosestTarget(maxDistance)
+    local closestPlayer = nil
+    local shortestDistance = maxDistance or 1000
 
-function ModernUI:CreateColorPicker(parent, initialColor, callback)
-    local pickerFrame = create("Frame", {
-        Size = UDim2.new(0, 24, 0, 24),
-        BackgroundColor3 = initialColor or COLOR.TEXT,
-        BorderSizePixel = 0,
-        Parent = parent
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.COLOR_PICKER),
-        Parent = pickerFrame
-    })
-    
-    local colors = {
-        Color3.fromRGB(255, 0, 0),
-        Color3.fromRGB(0, 255, 0),
-        Color3.fromRGB(0, 0, 255),
-        Color3.fromRGB(255, 255, 0),
-        Color3.fromRGB(255, 0, 255),
-        Color3.fromRGB(0, 255, 255),
-        Color3.fromRGB(255, 255, 255),
-        Color3.fromRGB(128, 128, 128),
-        Color3.fromRGB(255, 165, 0),
-        Color3.fromRGB(75, 0, 130)
-    }
-    
-    local currentIndex = 1
-    
-    pickerFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            currentIndex = currentIndex + 1
-            if currentIndex > #colors then currentIndex = 1 end
-            pickerFrame.BackgroundColor3 = colors[currentIndex]
-            if callback then
-                callback(colors[currentIndex])
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local headPos = workspace.CurrentCamera:WorldToViewportPoint(player.Character.Head.Position)
+            local distance = (Vector2.new(headPos.X, headPos.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
+            if distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
             end
         end
-    end)
-    
-    return {
-        Frame = pickerFrame,
-        GetColor = function() return pickerFrame.BackgroundColor3 end,
-        SetColor = function(color)
-            pickerFrame.BackgroundColor3 = color
-        end
-    }
+    end
+    return closestPlayer
 end
 
-function ModernUI:CreateColorOption(parent, label, initialColor)
-    local container = create("Frame", {
-        Size = UDim2.new(1, 0, 0, 24),
-        BackgroundTransparency = 1,
-        Parent = parent
-    })
-    
-    local checkbox = self:CreateCheckboxOption(container, label)
-    checkbox.Frame.Position = UDim2.new(0, 0, 0, 0)
-    
-    local colorPicker = self:CreateColorPicker(container, initialColor)
-    colorPicker.Frame.Position = UDim2.new(0, 160, 0, 2)
-    
-    return {
-        Checkbox = checkbox,
-        ColorPicker = colorPicker
-    }
-end
-
-function ModernUI:CreateSlider(parent, label, min, max, defaultValue, callback)
-    local sliderFrame = create("Frame", {
-        Size = UDim2.new(0, 220, 0, 50),
-        BackgroundTransparency = 1,
-        Parent = parent
-    })
-    
-    local label = create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 20),
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TEXT,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = label,
-        Parent = sliderFrame
-    })
-    
-    local valueLabel = create("TextLabel", {
-        Size = UDim2.new(0, 40, 0, 20),
-        Position = UDim2.new(1, -40, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TEXT,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Text = tostring(defaultValue or min),
-        Parent = sliderFrame
-    })
-    
-    local track = create("Frame", {
-        Size = UDim2.new(1, 0, 0, 4),
-        Position = UDim2.new(0, 0, 0, 30),
-        BackgroundColor3 = COLOR.CHECKBOX,
-        BorderSizePixel = 0,
-        Parent = sliderFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = track
-    })
-    
-    local fill = create("Frame", {
-        Size = UDim2.new(0, 0, 1, 0),
-        BackgroundColor3 = COLOR.TEXT,
-        BorderSizePixel = 0,
-        Parent = track
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = fill
-    })
-    
-    local thumb = create("Frame", {
-        Size = UDim2.new(0, 12, 0, 12),
-        Position = UDim2.new(0, 0, 0.5, -6),
-        BackgroundColor3 = COLOR.TEXT,
-        BorderSizePixel = 0,
-        Parent = track
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = thumb
-    })
-    
-    local dragging = false
-    local value = math.clamp(defaultValue or min, min, max)
-    
-    local function updateValue(newValue)
-        value = math.clamp(newValue, min, max)
-        local ratio = (value - min) / (max - min)
-        fill.Size = UDim2.new(ratio, 0, 1, 0)
-        thumb.Position = UDim2.new(ratio, -6, 0.5, -6)
-        valueLabel.Text = string.format("%.1f", value)
-        if callback then
-            callback(value)
-        end
-    end
-    
-    updateValue(value)
-    
-    local function updateFromInput(input)
-        local x = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-        x = math.clamp(x, 0, 1)
-        updateValue(min + (max - min) * x)
-    end
-    
-    thumb.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateFromInput(input)
-        end
-    end)
-    
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateFromInput(input)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateFromInput(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    return {
-        Frame = sliderFrame,
-        GetValue = function() return value end,
-        SetValue = function(newValue) updateValue(newValue) end
-    }
-end
-
-function ModernUI:Destroy()
-    self.ScreenGui:Destroy()
-    for k, v in pairs(self) do
-        self[k] = nil
-    end
-end
-
--- Example Usage
-local ui = ModernUI.new("Modern GUI Example")
-
--- Create tabs and pages
-local aimTab = ui:CreateTab("Aim Assist")
-local visualTab = ui:CreateTab("Visual")
-local miscTab = ui:CreateTab("Misc")
-
-local aimPage = ui:CreatePage("Aim Assist")
-local visualPage = ui:CreatePage("Visual")
-local miscPage = ui:CreatePage("Misc")
-
--- Connect tabs to pages
-aimTab.MouseButton1Click:Connect(function()
-    ui:ShowPage("Aim Assist")
-end)
-
-visualTab.MouseButton1Click:Connect(function()
-    ui:ShowPage("Visual")
-end)
-
-miscTab.MouseButton1Click:Connect(function()
-    ui:ShowPage("Misc")
-end)
-
--- Show initial page
-ui:ShowPage("Aim Assist")
-
--- Add content to pages
--- Aim Assist Page
-local aimbotCheckbox = ui:CreateCheckboxOption(aimPage, "Enable Aimbot", function(checked)
-    if checked then
-        ui.LoadedScripts.aimbot = loadScript("aimbot.lua")
-        if ui.LoadedScripts.aimbot then
-            ui.LoadedScripts.aimbot.Toggle(true)
-        end
-    else
-        if ui.LoadedScripts.aimbot then
-            ui.LoadedScripts.aimbot.Toggle(false)
-        end
-        ui.LoadedScripts.aimbot = nil
+-- Função para mirar no inimigo
+local aiming = false
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == aimKey and aimbotEnabled then
+        aiming = not aiming
     end
 end)
 
-local autoFireCheckbox = ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
-    if checked then
-        ui.LoadedScripts.auto_fire = loadScript("auto_fire.lua")
-        if ui.LoadedScripts.auto_fire then
-            ui.LoadedScripts.auto_fire.Toggle(true)
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == aimKey then
+        aiming = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if aiming and aimbotEnabled then
+        local target = getClosestTarget(100) -- 100 pixels de FOV
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local headPos = target.Character.Head.Position
+            -- Move a mira do mouse para a cabeça do inimigo
+            mousemoverel = mousemoverel or (function(dx, dy)
+                local virtualUser = game:GetService("VirtualUser")
+                virtualUser:Button1Down(Vector2.new(0,0))
+                virtualUser:MoveMouseRelative(dx, dy)
+                virtualUser:Button1Up(Vector2.new(0,0))
+            end)
+
+            local camera = workspace.CurrentCamera
+            local cameraPos = camera.CFrame.Position
+            local screenPos, onScreen = camera:WorldToScreenPoint(headPos)
+            if onScreen then
+                local dx = screenPos.X - mouse.X
+                local dy = screenPos.Y - mouse.Y
+                -- Ajuste fino para suavizar o movimento
+                mousemoverel(dx * 0.5, dy * 0.5)
+
+                -- Autofire
+                if autofireEnabled then
+                    mouse1click = mouse1click or function()
+                        local virtualUser = game:GetService("VirtualUser")
+                        virtualUser:Button1Down(Vector2.new(0,0))
+                        wait(0.01)
+                        virtualUser:Button1Up(Vector2.new(0,0))
+                    end
+                    mouse1click()
+                end
+            end
         end
-    else
-        if ui.LoadedScripts.auto_fire then
-            ui.LoadedScripts.auto_fire.Toggle(false)
-        end
-        ui.LoadedScripts.auto_fire = nil
     end
-end)
-
-local autoFireCheckbox = ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
-    if checked then
-        ui.LoadedScripts.auto_fire = loadScript("auto_fire.lua")
-        print("Auto Fire carregado:", ui.LoadedScripts.auto_fire ~= nil)
-    else
-        unloadScript("auto_fire.lua")
-        ui.LoadedScripts.auto_fire = nil
-        print("Auto Fire descarregado")
-    end
-end)
-
-local checkWallCheckbox = ui:CreateCheckboxOption(aimPage, "Check Wall", function(checked)
-    if checked then
-        ui.LoadedScripts.check_wall = loadScript("check_wall.lua")
-        print("Check Wall carregado:", ui.LoadedScripts.check_wall ~= nil)
-    else
-        unloadScript("check_wall.lua")
-        ui.LoadedScripts.check_wall = nil
-        print("Check Wall descarregado")
-    end
-end)
-
-local fovSlider = ui:CreateSlider(aimPage, "Aimbot FOV", 1, 360, 90, function(value)
-    print("Aimbot FOV:", value)
-    if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.UpdateFOV then
-        ui.LoadedScripts.aimbot.UpdateFOV(value)
-    end
-end)
-
--- Visual Page
-local espOption = ui:CreateColorOption(visualPage, "ESP", Color3.fromRGB(255, 0, 0))
-local espBoxOption = ui:CreateColorOption(visualPage, "ESP Box", Color3.fromRGB(0, 255, 0))
-local espLineOption = ui:CreateColorOption(visualPage, "ESP Line", Color3.fromRGB(0, 0, 255))
-
-espOption.Checkbox.Toggle = function()
-    local checked = espOption.Checkbox.Toggle()
-    print("ESP:", checked, "Color:", espOption.ColorPicker.GetColor())
-end
-
--- Misc Page
-ui:CreateCheckboxOption(miscPage, "Bunny Hop", function(checked)
-    print("Bunny Hop:", checked)
 end)
