@@ -602,23 +602,43 @@ ui:ShowPage("Aim Assist")
 -- Aim Assist Page
 local aimbotCheckbox = ui:CreateCheckboxOption(aimPage, "Enable Aimbot", function(checked)
     if checked then
-        ui.LoadedScripts.aimbot = loadScript("aimbot.lua")
-        print("Aimbot carregado:", ui.LoadedScripts.aimbot ~= nil)
+        ui.LoadedScripts.aimbot = loadScript("aimbot")
+        if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.Toggle then
+            ui.LoadedScripts.aimbot.Toggle(true)
+        end
     else
-        unloadScript("aimbot.lua")
+        if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.Toggle then
+            ui.LoadedScripts.aimbot.Toggle(false)
+        end
         ui.LoadedScripts.aimbot = nil
-        print("Aimbot descarregado")
     end
 end)
 
 local autoFireCheckbox = ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
     if checked then
-        ui.LoadedScripts.auto_fire = loadScript("auto_fire.lua")
-        print("Auto Fire carregado:", ui.LoadedScripts.auto_fire ~= nil)
+        ui.LoadedScripts.auto_fire = loadScript("auto_fire")
+        if ui.LoadedScripts.auto_fire and ui.LoadedScripts.auto_fire.Toggle then
+            ui.LoadedScripts.auto_fire.Toggle(true)
+        end
     else
-        unloadScript("auto_fire.lua")
+        if ui.LoadedScripts.auto_fire and ui.LoadedScripts.auto_fire.Toggle then
+            ui.LoadedScripts.auto_fire.Toggle(false)
+        end
         ui.LoadedScripts.auto_fire = nil
-        print("Auto Fire descarregado")
+    end
+end)
+
+local checkWallCheckbox = ui:CreateCheckboxOption(aimPage, "Check Wall", function(checked)
+    if checked then
+        ui.LoadedScripts.check_wall = loadScript("check_wall")
+        if ui.LoadedScripts.check_wall and ui.LoadedScripts.check_wall.Toggle then
+            ui.LoadedScripts.check_wall.Toggle(true)
+        end
+    else
+        if ui.LoadedScripts.check_wall and ui.LoadedScripts.check_wall.Toggle then
+            ui.LoadedScripts.check_wall.Toggle(false)
+        end
+        ui.LoadedScripts.check_wall = nil
     end
 end)
 
