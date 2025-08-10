@@ -41,7 +41,7 @@ SideLayout.Parent = SideBar
 SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SideLayout.Padding = UDim.new(0, 8)
 
--- Função para criar botão da aba
+-- Função para criar botão de aba
 local function CreateTab(name)
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(1, 0, 0, 38)
@@ -53,7 +53,7 @@ local function CreateTab(name)
     Button.BorderSizePixel = 0
     Button.AutoButtonColor = false
 
-    -- Efeito de hover
+    -- Hover
     Button.MouseEnter:Connect(function()
         Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     end)
@@ -69,7 +69,7 @@ local function CreateTab(name)
     return Button
 end
 
--- Criar abas
+-- Criar abas laterais
 local AimAssistTab = CreateTab("Aim Assist")
 local VisualTab = CreateTab("Visual")
 local MiscTab = CreateTab("Misc")
@@ -81,7 +81,7 @@ ContentFrame.BackgroundTransparency = 1
 ContentFrame.Position = UDim2.new(0, 140, 0, 0)
 ContentFrame.Size = UDim2.new(1, -140, 1, 0)
 
--- Criar páginas
+-- Criar sistema de páginas
 local Pages = {}
 local function CreatePage(name)
     local Page = Instance.new("Frame")
@@ -107,7 +107,7 @@ local function ShowPage(name)
     end
 end
 
--- Eventos de clique
+-- Eventos de clique das abas
 AimAssistTab.MouseButton1Click:Connect(function()
     ShowPage("Aim Assist")
 end)
@@ -120,14 +120,60 @@ MiscTab.MouseButton1Click:Connect(function()
     ShowPage("Misc")
 end)
 
--- Exemplo de conteúdo da aba "Aim Assist"
-local Title = Instance.new("TextLabel")
-Title.Parent = AimPage
-Title.Text = "Configurações de Aim Assist"
-Title.Size = UDim2.new(1, -20, 0, 40)
-Title.Position = UDim2.new(0, 10, 0, 10)
-Title.BackgroundTransparency = 1
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Left
+-- Função para criar botões de opções dentro das páginas
+local function CreateOptionButton(parent, text)
+    local Button = Instance.new("TextButton")
+    Button.Parent = parent
+    Button.Size = UDim2.new(0, 160, 0, 36)
+    Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 14
+    Button.Text = text
+    Button.BorderSizePixel = 0
+    Button.AutoButtonColor = false
+
+    -- Hover
+    Button.MouseEnter:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+    end)
+    Button.MouseLeave:Connect(function()
+        Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    end)
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.Parent = Button
+
+    return Button
+end
+
+-- Layout e padding da aba Aim Assist
+local AimLayout = Instance.new("UIListLayout")
+AimLayout.Parent = AimPage
+AimLayout.Padding = UDim.new(0, 8)
+AimLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+AimLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+local AimPadding = Instance.new("UIPadding")
+AimPadding.Parent = AimPage
+AimPadding.PaddingTop = UDim.new(0, 50)
+AimPadding.PaddingLeft = UDim.new(0, 15)
+
+-- Criar botões na aba Aim Assist
+local BtnAimbot = CreateOptionButton(AimPage, "Aimbot")
+local BtnAutoFire = CreateOptionButton(AimPage, "AutoFire")
+local BtnCheckWall = CreateOptionButton(AimPage, "Check Wall")
+
+-- Eventos de clique exemplo
+BtnAimbot.MouseButton1Click:Connect(function()
+    print("Aimbot toggled!")
+end)
+
+BtnAutoFire.MouseButton1Click:Connect(function()
+    print("AutoFire toggled!")
+end)
+
+BtnCheckWall.MouseButton1Click:Connect(function()
+    print("Check Wall toggled!")
+end)
