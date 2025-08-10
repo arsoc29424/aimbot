@@ -1,7 +1,13 @@
--- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+
+-- Configurações dos URLs dos scripts
+local SCRIPTS_URL = {
+    aimbot = "https://raw.githubusercontent.com/arsoc29424/aimbot/main/aimbot.lua",
+    auto_fire = "https://raw.githubusercontent.com/arsoc29424/aimbot/main/auto_fire.lua",
+    check_wall = "https://raw.githubusercontent.com/arsoc29424/aimbot/main/check_wall.lua"
+}
 
 -- Constants
 local COLOR = {
