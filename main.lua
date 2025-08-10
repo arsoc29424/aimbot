@@ -51,30 +51,35 @@ end
 
 -- Script Loading Functions
 local function loadScript(scriptName)
-    local success, err = pcall(function()
-        local scriptPath = scriptName
-        if not scriptPath:match(".lua$") then
-            scriptPath = scriptPath .. ".lua"
-        end
-        
-        if not isfile(scriptPath) then
-            error("Arquivo não encontrado: " .. scriptPath)
-        end
-        
-        local scriptContent = readfile(scriptPath)
-        local loadedFunction = loadstring(scriptContent)
-        if loadedFunction then
-            return loadedFunction()
-        else
-            error("Falha ao carregar o script: " .. scriptPath)
-        end
-    end)
-    
-    if not success then
-        warn("Erro ao carregar " .. scriptName .. ": " .. err)
+    local url = SCRIPTS_URL[scriptName]
+    if not url then
+        warn("Script não encontrado na configuração: " .. scriptName)
         return nil
     end
-    return success
+
+    print("[DEBUG] Tentando carregar script: " .. url)
+    local success, result = pcall(function()
+        local httpContent = game:HttpGet(url, true)
+        if not httpContent then
+            error("Falha ao baixar o script")
+        end
+        
+        print("[DEBUG] Script baixado, tamanho: " .. #httpContent .. " bytes")
+        local loadedFunction, compileError = loadstring(httpContent, scriptName)
+        if not loadedFunction then
+            error("Erro de compilação: " .. (compileError or "unknown"))
+        end
+        
+        return loadedFunction()
+    end)
+    
+    if success then
+        print("[SUCESSO] Script carregado: " .. scriptName)
+        return result
+    else
+        warn("[ERRO] Falha ao carregar " .. scriptName .. ": " .. result)
+        return nil
+    end
 end
 
 local function unloadScript(scriptName)
