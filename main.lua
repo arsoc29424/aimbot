@@ -43,7 +43,6 @@ TitleLabel.Parent = TitleBar
 
 -- Drag para mover a GUI
 local dragging, dragInput, dragStart, startPos
-
 local function update(input)
     local delta = input.Position - dragStart
     MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
@@ -216,7 +215,6 @@ local function CreateCheckboxOption(parent, text)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             Checked = not Checked
             Check.Text = Checked and "✓" or ""
-            print(text .. " -> " .. tostring(Checked))
             if OptionFrame.OnChanged then
                 OptionFrame.OnChanged(Checked)
             end
@@ -338,7 +336,7 @@ local function CreateFovSlider(parent)
     return SliderFrame
 end
 
--- Configurar layout da página para usar UIListLayout e padding
+-- Layout padrão para páginas
 local function SetupPageLayout(page)
     local layout = Instance.new("UIListLayout")
     layout.Parent = page
@@ -362,17 +360,12 @@ local checkWallOption = CreateCheckboxOption(AimPage, "Check Wall")
 local drawFovOption = CreateCheckboxOption(AimPage, "Draw Fov")
 local fovSlider = CreateFovSlider(AimPage)
 
--- Atualizar estado do slider conforme Aimbot ligado
 local function updateSliderState()
     local enabled = aimbotOption:GetValue()
     fovSlider:SetEnabled(enabled)
-    if not enabled then
-        -- reset slider para 0 se quiser
-        -- fovSlider:SetValue(0) -- opcional
-    end
 end
 
--- Atualiza quando clicar em Aimbot ou Draw Fov
+-- Atualiza o slider ao clicar em Aimbot e Draw Fov
 aimbotOption.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         wait(0.1)
@@ -439,6 +432,7 @@ WorldModContainer.Size = UDim2.new(1, 0, 0, 24)
 WorldModContainer.BackgroundTransparency = 1
 WorldModContainer.Parent = MiscPage
 
+local bunnyHopOption = CreateCheckboxOption(MiscPage, "Bunny Hop")
 local worldModCheckbox = CreateCheckboxOption(WorldModContainer, "World Modulation")
 worldModCheckbox.Position = UDim2.new(0, 0, 0, 0)
 
