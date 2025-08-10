@@ -51,30 +51,38 @@ end
 
 -- Script Loading Functions
 local function loadScript(scriptName)
-    local success, err = pcall(function()
+    print(`[DEBUG] Tentando carregar: {scriptName}`)
+    local success, result = pcall(function()
         local scriptPath = scriptName
         if not scriptPath:match(".lua$") then
             scriptPath = scriptPath .. ".lua"
         end
         
         if not isfile(scriptPath) then
-            error("Arquivo não encontrado: " .. scriptPath)
+            error(`Arquivo não encontrado: {scriptPath}`)
         end
         
+        print(`[DEBUG] Lendo arquivo: {scriptPath}`)
         local scriptContent = readfile(scriptPath)
-        local loadedFunction = loadstring(scriptContent)
-        if loadedFunction then
-            return loadedFunction()
-        else
-            error("Falha ao carregar o script: " .. scriptPath)
+        print(`[DEBUG] Tamanho do script: {#scriptContent} bytes`)
+        
+        print(`[DEBUG] Compilando script...`)
+        local loadedFunction, compileError = loadstring(scriptContent, scriptName)
+        if not loadedFunction then
+            error(`Erro de compilação: {compileError}`)
         end
+        
+        print(`[DEBUG] Executando script...`)
+        return loadedFunction()
     end)
     
-    if not success then
-        warn("Erro ao carregar " .. scriptName .. ": " .. err)
+    if success then
+        print(`[SUCESSO] Script {scriptName} carregado com sucesso!`)
+        return result
+    else
+        warn(`[ERRO] Falha ao carregar {scriptName}: {result}`)
         return nil
     end
-    return success
 end
 
 local function unloadScript(scriptName)
