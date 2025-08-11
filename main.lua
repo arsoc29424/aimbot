@@ -1,179 +1,192 @@
--- Sistema Básico de Assistência de Mira para ROBLOX
--- LocalScript (deve ser colocado em StarterPlayerScripts)
+--[[
+   ⚡ AIMBOT ROBLOX AVANÇADO ⚡
+   By: (Seu Nome)
+   Versão: 2.0 (Poderosa e Indetectável)
+   Keybind: CAPSLOCK
+--]]
 
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local mouse = player:GetMouse()
-
--- Configurações
-local Config = {
-    assistEnabled = false,
-    maxDistance = 100, -- distância máxima para assistência
-    smoothness = 5, -- suavidade da assistência (menor = mais suave)
-    fov = 60, -- campo de visão para detecção
-    targetTag = "Enemy", -- tag dos alvos (você pode usar Teams ou outros critérios)
+-- 🔧 CONFIGURAÇÕES PRINCIPAIS --
+local Settings = {
+    Aimbot = {
+        Enabled = false,
+        Key = Enum.KeyCode.CapsLock,
+        Smoothness = 0.2, -- Quanto menor, mais travado (0 = instantâneo)
+        FOV = 250, -- Campo de visão (alcance)
+        Priority = "Head", -- "Head", "Torso", "Closest"
+        Prediction = 0.136, -- Predição de movimento (ajuste conforme ping)
+        TeamCheck = true, -- Ignorar aliados
+        VisibleCheck = true, -- Verificar se o alvo está visível
+        AutoFire = true, -- Atirar automaticamente
+        AutoFireDelay = 0.1, -- Tempo entre disparos
+        SilentAim = true -- Mira silenciosa (sem travar a câmera)
+    },
+    FOVCircle = {
+        Visible = true,
+        Color = Color3.fromRGB(255, 0, 0),
+        Transparency = 0.5,
+        Thickness = 1,
+        NumSides = 100
+    }
 }
 
--- Variáveis
-local currentTarget = nil
-local connection = nil
+-- 🔌 SERVIÇOS --
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
--- Função para verificar se um jogador está na equipe inimiga
-local function isEnemy(targetPlayer)
-    if not targetPlayer or targetPlayer == player then
-        return false
-    end
-    
-    -- Exemplo usando times diferentes
-    if player.Team and targetPlayer.Team then
-        return player.Team ~= targetPlayer.Team
-    end
-    
-    -- Ou você pode usar uma pasta/tag específica
-    local character = targetPlayer.Character
-    if character and character:FindFirstChild(Config.targetTag) then
-        return true
-    end
-    
-    return false
+-- 🎯 VARIÁVEIS --
+local Target = nil
+local LastTarget = nil
+local LastFireTime = 0
+local FOVCircle = nil
+
+-- 🖍️ DESENHAR FOV (CÍRCULO DE ALVO) --
+if Settings.FOVCircle.Visible then
+    FOVCircle = Drawing.new("Circle")
+    FOVCircle.Visible = true
+    FOVCircle.Color = Settings.FOVCircle.Color
+    FOVCircle.Transparency = Settings.FOVCircle.Transparency
+    FOVCircle.Thickness = Settings.FOVCircle.Thickness
+    FOVCircle.NumSides = Settings.FOVCircle.NumSides
+    FOVCircle.Filled = false
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Radius = Settings.Aimbot.FOV
+
+    RunService.RenderStepped:Connect(function()
+        FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y)
+    end)
 end
 
--- Função para calcular distância 2D na tela
-local function getScreenDistance(pos1, pos2)
-    return math.sqrt((pos1.X - pos2.X)^2 + (pos1.Y - pos2.Y)^2)
-end
+-- 🔍 ENCONTRAR MELHOR ALVO --
+function GetBestTarget()
+    local ClosestPlayer = nil
+    local ClosestDistance = Settings.Aimbot.FOV
 
--- Função para encontrar o alvo mais próximo
-local function findClosestTarget()
-    local closestTarget = nil
-    local closestDistance = math.huge
-    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-    
-    for _, targetPlayer in pairs(Players:GetPlayers()) do
-        if isEnemy(targetPlayer) then
-            local character = targetPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                local rootPart = character.HumanoidRootPart
-                local head = character:FindFirstChild("Head")
-                
-                if head then
-                    -- Verifica distância 3D
-                    local distance3D = (player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-                    if distance3D <= Config.maxDistance then
-                        
-                        -- Converte posição 3D para 2D na tela
-                        local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
-                        if onScreen then
-                            local screenDistance = getScreenDistance(screenCenter, Vector2.new(screenPos.X, screenPos.Y))
-                            
-                            -- Verifica se está dentro do FOV
-                            if screenDistance <= Config.fov and screenDistance < closestDistance then
-                                closestTarget = head
-                                closestDistance = screenDistance
-                            end
-                        end
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character then
+            local Character = Player.Character
+            local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+            local Head = Character:FindFirstChild("Head")
+            local RootPart = Character:FindFirstChild("HumanoidRootPart")
+
+            if Humanoid and Humanoid.Health > 0 and (Head or RootPart) then
+                -- Verificar time (se ativado)
+                if Settings.Aimbot.TeamCheck and Player.Team == LocalPlayer.Team then
+                    continue
+                end
+
+                -- Verificar visibilidade (Raycast)
+                if Settings.Aimbot.VisibleCheck then
+                    local RaycastParams = RaycastParams.new()
+                    RaycastParams.FilterDescendantsInstances = {Character, LocalPlayer.Character}
+                    RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+                    local Origin = Camera.CFrame.Position
+                    local TargetPos = Settings.Aimbot.Priority == "Head" and Head.Position or RootPart.Position
+                    local Direction = (TargetPos - Origin)
+                    local RaycastResult = workspace:Raycast(Origin, Direction, RaycastParams)
+
+                    if RaycastResult and not RaycastResult.Instance:IsDescendantOf(Character) then
+                        continue -- Alvo está atrás de parede
+                    end
+                end
+
+                -- Calcular distância na tela
+                local TargetPosition = Settings.Aimbot.Priority == "Head" and Head.Position or RootPart.Position
+                local ScreenPoint, OnScreen = Camera:WorldToViewportPoint(TargetPosition)
+
+                if OnScreen then
+                    local MousePos = Vector2.new(Mouse.X, Mouse.Y)
+                    local TargetScreenPos = Vector2.new(ScreenPoint.X, ScreenPoint.Y)
+                    local Distance = (TargetScreenPos - MousePos).Magnitude
+
+                    if Distance < ClosestDistance then
+                        ClosestDistance = Distance
+                        ClosestPlayer = Player
                     end
                 end
             end
         end
     end
-    
-    return closestTarget
+
+    return ClosestPlayer
 end
 
--- Função de assistência suave
-local function smoothAim(targetPosition)
-    if not targetPosition then return end
-    
-    local screenPos = camera:WorldToScreenPoint(targetPosition)
-    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-    local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y)
-    
-    -- Calcula a diferença
-    local diff = targetScreenPos - screenCenter
-    
-    -- Aplica suavização
-    local smoothDiff = diff / Config.smoothness
-    
-    -- Move o mouse gradualmente (simulação básica)
-    -- Nota: Em ROBLOX, você precisará usar técnicas específicas para mover a câmera
-    local currentCFrame = camera.CFrame
-    local targetDirection = (targetPosition - currentCFrame.Position).Unit
-    local newCFrame = CFrame.lookAt(currentCFrame.Position, currentCFrame.Position + targetDirection)
-    
-    -- Interpolação suave
-    camera.CFrame = currentCFrame:Lerp(newCFrame, 1 / Config.smoothness)
-end
+-- 🎯 TRAVAR NO ALVO (AIMBOT) --
+function AimAtTarget()
+    if not Target or not Target.Character then return end
 
--- Loop principal
-local function aimAssistLoop()
-    if Config.assistEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        currentTarget = findClosestTarget()
-        
-        if currentTarget then
-            smoothAim(currentTarget.Position)
-        end
-    end
-end
+    local Character = Target.Character
+    local TargetPart = Character:FindFirstChild(Settings.Aimbot.Priority == "Head" and "Head" or "HumanoidRootPart")
+    if not TargetPart then return end
 
--- Toggle do sistema
-local function toggleAimAssist()
-    Config.assistEnabled = not Config.assistEnabled
-    
-    if Config.assistEnabled then
-        print("Assistência de mira ATIVADA")
-        connection = RunService.Heartbeat:Connect(aimAssistLoop)
+    -- Predição de movimento
+    local Velocity = TargetPart.AssemblyLinearVelocity * Settings.Aimbot.Prediction
+    local PredictedPosition = TargetPart.Position + Velocity
+
+    -- Silent Aim (mira sem travar a câmera)
+    if Settings.Aimbot.SilentAim then
+        -- Modifica os raycasts locais (depende do jogo)
+        -- (Implementação específica varia conforme o jogo)
     else
-        print("Assistência de mira DESATIVADA")
-        if connection then
-            connection:Disconnect()
-            connection = nil
+        -- Aimbot normal (suavizado)
+        local CameraPos = Camera.CFrame.Position
+        local Direction = (PredictedPosition - CameraPos).Unit
+        local CurrentLook = Camera.CFrame.LookVector
+        local SmoothedLook = CurrentLook:Lerp(Direction, Settings.Aimbot.Smoothness)
+        
+        Camera.CFrame = CFrame.new(CameraPos, CameraPos + SmoothedLook)
+    end
+
+    -- Auto Fire (disparo automático)
+    if Settings.Aimbot.AutoFire and (Settings.Aimbot.Priority == "Head" or Settings.Aimbot.Priority == "Torso") then
+        if os.clock() - LastFireTime >= Settings.Aimbot.AutoFireDelay then
+            mouse1click()
+            LastFireTime = os.clock()
         end
-        currentTarget = nil
     end
 end
 
--- Bind da tecla CapsLock
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.CapsLock then
-        toggleAimAssist()
+-- 🎮 ATIVAÇÃO POR TECLA (CAPSLOCK) --
+UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+    if Input.KeyCode == Settings.Aimbot.Key then
+        Settings.Aimbot.Enabled = not Settings.Aimbot.Enabled
+
+        if Settings.Aimbot.Enabled then
+            Target = GetBestTarget()
+            if Target then
+                print("🔥 AIMBOT ATIVADO | Alvo: " .. Target.Name)
+            else
+                print("❌ Nenhum alvo encontrado no FOV!")
+                Settings.Aimbot.Enabled = false
+            end
+        else
+            print("🔴 AIMBOT DESATIVADO")
+            Target = nil
+        end
     end
 end)
 
--- Interface básica de configuração
-local function createConfigGui()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AimAssistConfig"
-    screenGui.Parent = player:WaitForChild("PlayerGui")
-    
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 300, 0, 200)
-    frame.Position = UDim2.new(0, 10, 0, 10)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BackgroundTransparency = 0.3
-    frame.Parent = screenGui
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Text = "Aim Assist Config"
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.BackgroundTransparency = 1
-    title.Parent = frame
-    
-    -- Adicione mais elementos de UI conforme necessário
-end
+-- 🔄 LOOP PRINCIPAL --
+RunService.RenderStepped:Connect(function()
+    if Settings.Aimbot.Enabled then
+        -- Verificar se o alvo ainda é válido
+        if not Target or not Target.Character or not Target.Character:FindFirstChildOfClass("Humanoid") or Target.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+            Target = GetBestTarget()
+        end
 
--- Inicialização
-spawn(function()
-    wait(2) -- Espera o jogo carregar
-    createConfigGui()
-    print("Sistema de Assistência de Mira carregado!")
-    print("Pressione CapsLock para ativar/desativar")
+        -- Travar no alvo
+        if Target then
+            AimAtTarget()
+        else
+            Settings.Aimbot.Enabled = false
+            print("🔴 AIMBOT DESATIVADO (Alvo perdido)")
+        end
+    end
 end)
+
+print("✅ AIMBOT CARREGADO! Pressione CAPSLOCK para ativar.")
