@@ -1,676 +1,179 @@
+-- Sistema Básico de Assistência de Mira para ROBLOX
+-- LocalScript (deve ser colocado em StarterPlayerScripts)
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Configurações dos URLs dos scripts
-local SCRIPTS_URL = {
-    aimbot = "https://raw.githubusercontent.com/arsoc29424/aimbot/main/aimbot.lua",
-    auto_fire = "https://raw.githubusercontent.com/arsoc29424/aimbot/main/auto_fire.lua",
-    check_wall = "https://raw.githubusercontent.com/arsoc29424/aimbot/main/check_wall.lua"
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local mouse = player:GetMouse()
+
+-- Configurações
+local Config = {
+    assistEnabled = false,
+    maxDistance = 100, -- distância máxima para assistência
+    smoothness = 5, -- suavidade da assistência (menor = mais suave)
+    fov = 60, -- campo de visão para detecção
+    targetTag = "Enemy", -- tag dos alvos (você pode usar Teams ou outros critérios)
 }
 
--- Constants
-local COLOR = {
-    BACKGROUND = Color3.fromRGB(20, 20, 20),
-    TITLEBAR = Color3.fromRGB(30, 30, 30),
-    BUTTON = Color3.fromRGB(45, 45, 45),
-    BUTTON_HOVER = Color3.fromRGB(60, 60, 60),
-    TEXT = Color3.fromRGB(255, 255, 255),
-    CHECKBOX = Color3.fromRGB(60, 60, 60)
-}
+-- Variáveis
+local currentTarget = nil
+local connection = nil
 
-local FONT = {
-    TITLE = Enum.Font.GothamBold,
-    BUTTON = Enum.Font.GothamBold,
-    TEXT = Enum.Font.Gotham
-}
-
-local SIZES = {
-    WINDOW = UDim2.new(0, 520, 0, 360),
-    TITLEBAR = UDim2.new(1, 0, 0, 36),
-    SIDEBAR = UDim2.new(0, 130, 1, -36),
-    BUTTON = UDim2.new(1, 0, 0, 38)
-}
-
-local CORNER_RADIUS = {
-    WINDOW = 12,
-    BUTTON = 8,
-    CHECKBOX = 4,
-    COLOR_PICKER = 6
-}
-
--- Utility Functions
-local function create(class, props)
-    local instance = Instance.new(class)
-    for prop, value in pairs(props) do
-        instance[prop] = value
+-- Função para verificar se um jogador está na equipe inimiga
+local function isEnemy(targetPlayer)
+    if not targetPlayer or targetPlayer == player then
+        return false
     end
-    return instance
-end
-
-local function tween(object, properties, duration, style)
-    local tweenInfo = TweenInfo.new(duration or 0.2, style or Enum.EasingStyle.Quad)
-    local tween = TweenService:Create(object, tweenInfo, properties)
-    tween:Play()
-    return tween
-end
-
--- Script Loading Functions
-local function loadScript(scriptName)
-    local url = SCRIPTS_URL[scriptName]
-    if not url then
-        warn("Script não encontrado na configuração: " .. scriptName)
-        return nil
+    
+    -- Exemplo usando times diferentes
+    if player.Team and targetPlayer.Team then
+        return player.Team ~= targetPlayer.Team
     end
-
-    print("[DEBUG] Tentando carregar script: " .. url)
-    local success, result = pcall(function()
-        local httpContent = game:HttpGet(url, true)
-        if not httpContent then
-            error("Falha ao baixar o script")
-        end
-        
-        print("[DEBUG] Script baixado, tamanho: " .. #httpContent .. " bytes")
-        local loadedFunction, compileError = loadstring(httpContent, scriptName)
-        if not loadedFunction then
-            error("Erro de compilação: " .. (compileError or "unknown"))
-        end
-        
-        return loadedFunction()
-    end)
     
-    if success then
-        print("[SUCESSO] Script carregado: " .. scriptName)
-        return result
-    else
-        warn("[ERRO] Falha ao carregar " .. scriptName .. ": " .. result)
-        return nil
+    -- Ou você pode usar uma pasta/tag específica
+    local character = targetPlayer.Character
+    if character and character:FindFirstChild(Config.targetTag) then
+        return true
     end
+    
+    return false
 end
 
-local function unloadScript(scriptName)
-    -- Implemente aqui a lógica para descarregar o script, se necessário
-    print("Script descarregado: " .. scriptName)
+-- Função para calcular distância 2D na tela
+local function getScreenDistance(pos1, pos2)
+    return math.sqrt((pos1.X - pos2.X)^2 + (pos1.Y - pos2.Y)^2)
 end
 
--- Main UI Creation
-local ModernUI = {}
-ModernUI.__index = ModernUI
-
-function ModernUI.new(title)
-    local self = setmetatable({}, ModernUI)
+-- Função para encontrar o alvo mais próximo
+local function findClosestTarget()
+    local closestTarget = nil
+    local closestDistance = math.huge
+    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     
-    self.LocalPlayer = Players.LocalPlayer
-    self.PlayerGui = self.LocalPlayer:WaitForChild("PlayerGui")
-    self.ActivePage = nil
-    self.Pages = {}
-    self.Components = {}
-    self.LoadedScripts = {}
-    
-    self:CreateMainWindow(title)
-    self:SetupDragging()
-    self:CreateSidebar()
-    
-    return self
-end
-
-function ModernUI:CreateMainWindow(title)
-    -- ScreenGui
-    self.ScreenGui = create("ScreenGui", {
-        Name = "ModernUI",
-        Parent = self.PlayerGui,
-        ResetOnSpawn = false
-    })
-    
-    -- Main Window Frame
-    self.MainFrame = create("Frame", {
-        Size = SIZES.WINDOW,
-        Position = UDim2.new(0.5, -260, 0.5, -180),
-        BackgroundColor3 = COLOR.BACKGROUND,
-        BorderSizePixel = 0,
-        Parent = self.ScreenGui
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.WINDOW),
-        Parent = self.MainFrame
-    })
-    
-    -- Title Bar
-    self.TitleBar = create("Frame", {
-        Size = SIZES.TITLEBAR,
-        BackgroundColor3 = COLOR.TITLEBAR,
-        Parent = self.MainFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.WINDOW),
-        Parent = self.TitleBar
-    })
-    
-    self.TitleLabel = create("TextLabel", {
-        Size = UDim2.new(1, -20, 1, 0),
-        Position = UDim2.new(0, 10, 0, 0),
-        BackgroundTransparency = 1,
-        Text = title or "Modern GUI",
-        Font = FONT.TITLE,
-        TextSize = 18,
-        TextColor3 = COLOR.TEXT,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = self.TitleBar
-    })
-    
-    -- Content Area
-    self.ContentFrame = create("Frame", {
-        Size = UDim2.new(1, -130, 1, -36),
-        Position = UDim2.new(0, 130, 0, 36),
-        BackgroundTransparency = 1,
-        Parent = self.MainFrame
-    })
-end
-
-function ModernUI:SetupDragging()
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        self.MainFrame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-
-    self.TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.MainFrame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if isEnemy(targetPlayer) then
+            local character = targetPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                local head = character:FindFirstChild("Head")
+                
+                if head then
+                    -- Verifica distância 3D
+                    local distance3D = (player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+                    if distance3D <= Config.maxDistance then
+                        
+                        -- Converte posição 3D para 2D na tela
+                        local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
+                        if onScreen then
+                            local screenDistance = getScreenDistance(screenCenter, Vector2.new(screenPos.X, screenPos.Y))
+                            
+                            -- Verifica se está dentro do FOV
+                            if screenDistance <= Config.fov and screenDistance < closestDistance then
+                                closestTarget = head
+                                closestDistance = screenDistance
+                            end
+                        end
+                    end
                 end
-            end)
-        end
-    end)
-
-    self.TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
-end
-
-function ModernUI:CreateSidebar()
-    self.SideBar = create("Frame", {
-        Size = SIZES.SIDEBAR,
-        Position = UDim2.new(0, 0, 0, 36),
-        BackgroundColor3 = COLOR.TITLEBAR,
-        BorderSizePixel = 0,
-        Parent = self.MainFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.WINDOW),
-        Parent = self.SideBar
-    })
-    
-    create("UIPadding", {
-        PaddingTop = UDim.new(0, 10),
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        Parent = self.SideBar
-    })
-    
-    create("UIListLayout", {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 8),
-        Parent = self.SideBar
-    })
-end
-
-function ModernUI:CreateTab(name)
-    local button = create("TextButton", {
-        Size = SIZES.BUTTON,
-        BackgroundColor3 = COLOR.BUTTON,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.BUTTON,
-        TextSize = 14,
-        Text = name,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Parent = self.SideBar
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.BUTTON),
-        Parent = button
-    })
-    
-    button.MouseEnter:Connect(function()
-        tween(button, {BackgroundColor3 = COLOR.BUTTON_HOVER})
-    end)
-    
-    button.MouseLeave:Connect(function()
-        tween(button, {BackgroundColor3 = COLOR.BUTTON})
-    end)
-    
-    return button
-end
-
-function ModernUI:CreatePage(name)
-    local page = create("Frame", {
-        Size = UDim2.new(1, 0, 1, 0),
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1,
-        Visible = false,
-        Parent = self.ContentFrame
-    })
-    
-    create("UIListLayout", {
-        Parent = page,
-        Padding = UDim.new(0, 10),
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        VerticalAlignment = Enum.VerticalAlignment.Top
-    })
-    
-    create("UIPadding", {
-        Parent = page,
-        PaddingTop = UDim.new(0, 25),
-        PaddingLeft = UDim.new(0, 15)
-    })
-    
-    self.Pages[name] = page
-    return page
-end
-
-function ModernUI:ShowPage(name)
-    if self.ActivePage then
-        self.ActivePage.Visible = false
-    end
-    
-    self.ActivePage = self.Pages[name]
-    if self.ActivePage then
-        self.ActivePage.Visible = true
-    end
-end
-
-function ModernUI:CreateCheckboxOption(parent, text, callback)
-    local optionFrame = create("Frame", {
-        Size = UDim2.new(0, 220, 0, 24),
-        BackgroundTransparency = 1,
-        Parent = parent
-    })
-    
-    local box = create("Frame", {
-        Size = UDim2.new(0, 20, 0, 20),
-        Position = UDim2.new(0, 0, 0, 2),
-        BackgroundColor3 = COLOR.CHECKBOX,
-        BorderSizePixel = 0,
-        Parent = optionFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.CHECKBOX),
-        Parent = box
-    })
-    
-    local check = create("TextLabel", {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TITLE,
-        TextSize = 16,
-        Text = "",
-        Parent = box
-    })
-    
-    local label = create("TextLabel", {
-        Size = UDim2.new(1, -28, 1, 0),
-        Position = UDim2.new(0, 28, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TEXT,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = text,
-        Parent = optionFrame
-    })
-    
-    local checked = false
-    
-    local function toggle()
-        checked = not checked
-        check.Text = checked and "✓" or ""
-        if callback then
-            callback(checked)
-        end
-        return checked
-    end
-    
-    optionFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            toggle()
-        end
-    end)
-    
-    return {
-        Frame = optionFrame,
-        Toggle = toggle,
-        IsChecked = function() return checked end,
-        SetChecked = function(value)
-            checked = value
-            check.Text = checked and "✓" or ""
-        end
-    }
-end
-
-function ModernUI:CreateColorPicker(parent, initialColor, callback)
-    local pickerFrame = create("Frame", {
-        Size = UDim2.new(0, 24, 0, 24),
-        BackgroundColor3 = initialColor or COLOR.TEXT,
-        BorderSizePixel = 0,
-        Parent = parent
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(0, CORNER_RADIUS.COLOR_PICKER),
-        Parent = pickerFrame
-    })
-    
-    local colors = {
-        Color3.fromRGB(255, 0, 0),
-        Color3.fromRGB(0, 255, 0),
-        Color3.fromRGB(0, 0, 255),
-        Color3.fromRGB(255, 255, 0),
-        Color3.fromRGB(255, 0, 255),
-        Color3.fromRGB(0, 255, 255),
-        Color3.fromRGB(255, 255, 255),
-        Color3.fromRGB(128, 128, 128),
-        Color3.fromRGB(255, 165, 0),
-        Color3.fromRGB(75, 0, 130)
-    }
-    
-    local currentIndex = 1
-    
-    pickerFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            currentIndex = currentIndex + 1
-            if currentIndex > #colors then currentIndex = 1 end
-            pickerFrame.BackgroundColor3 = colors[currentIndex]
-            if callback then
-                callback(colors[currentIndex])
             end
         end
-    end)
-    
-    return {
-        Frame = pickerFrame,
-        GetColor = function() return pickerFrame.BackgroundColor3 end,
-        SetColor = function(color)
-            pickerFrame.BackgroundColor3 = color
-        end
-    }
-end
-
-function ModernUI:CreateColorOption(parent, label, initialColor)
-    local container = create("Frame", {
-        Size = UDim2.new(1, 0, 0, 24),
-        BackgroundTransparency = 1,
-        Parent = parent
-    })
-    
-    local checkbox = self:CreateCheckboxOption(container, label)
-    checkbox.Frame.Position = UDim2.new(0, 0, 0, 0)
-    
-    local colorPicker = self:CreateColorPicker(container, initialColor)
-    colorPicker.Frame.Position = UDim2.new(0, 160, 0, 2)
-    
-    return {
-        Checkbox = checkbox,
-        ColorPicker = colorPicker
-    }
-end
-
-function ModernUI:CreateSlider(parent, label, min, max, defaultValue, callback)
-    local sliderFrame = create("Frame", {
-        Size = UDim2.new(0, 220, 0, 50),
-        BackgroundTransparency = 1,
-        Parent = parent
-    })
-    
-    local label = create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 20),
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TEXT,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = label,
-        Parent = sliderFrame
-    })
-    
-    local valueLabel = create("TextLabel", {
-        Size = UDim2.new(0, 40, 0, 20),
-        Position = UDim2.new(1, -40, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = COLOR.TEXT,
-        Font = FONT.TEXT,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Text = tostring(defaultValue or min),
-        Parent = sliderFrame
-    })
-    
-    local track = create("Frame", {
-        Size = UDim2.new(1, 0, 0, 4),
-        Position = UDim2.new(0, 0, 0, 30),
-        BackgroundColor3 = COLOR.CHECKBOX,
-        BorderSizePixel = 0,
-        Parent = sliderFrame
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = track
-    })
-    
-    local fill = create("Frame", {
-        Size = UDim2.new(0, 0, 1, 0),
-        BackgroundColor3 = COLOR.TEXT,
-        BorderSizePixel = 0,
-        Parent = track
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = fill
-    })
-    
-    local thumb = create("Frame", {
-        Size = UDim2.new(0, 12, 0, 12),
-        Position = UDim2.new(0, 0, 0.5, -6),
-        BackgroundColor3 = COLOR.TEXT,
-        BorderSizePixel = 0,
-        Parent = track
-    })
-    
-    create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = thumb
-    })
-    
-    local dragging = false
-    local value = math.clamp(defaultValue or min, min, max)
-    
-    local function updateValue(newValue)
-        value = math.clamp(newValue, min, max)
-        local ratio = (value - min) / (max - min)
-        fill.Size = UDim2.new(ratio, 0, 1, 0)
-        thumb.Position = UDim2.new(ratio, -6, 0.5, -6)
-        valueLabel.Text = string.format("%.1f", value)
-        if callback then
-            callback(value)
-        end
     end
     
-    updateValue(value)
-    
-    local function updateFromInput(input)
-        local x = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-        x = math.clamp(x, 0, 1)
-        updateValue(min + (max - min) * x)
-    end
-    
-    thumb.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateFromInput(input)
-        end
-    end)
-    
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateFromInput(input)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateFromInput(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    return {
-        Frame = sliderFrame,
-        GetValue = function() return value end,
-        SetValue = function(newValue) updateValue(newValue) end
-    }
+    return closestTarget
 end
 
-function ModernUI:Destroy()
-    self.ScreenGui:Destroy()
-    for k, v in pairs(self) do
-        self[k] = nil
+-- Função de assistência suave
+local function smoothAim(targetPosition)
+    if not targetPosition then return end
+    
+    local screenPos = camera:WorldToScreenPoint(targetPosition)
+    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+    local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y)
+    
+    -- Calcula a diferença
+    local diff = targetScreenPos - screenCenter
+    
+    -- Aplica suavização
+    local smoothDiff = diff / Config.smoothness
+    
+    -- Move o mouse gradualmente (simulação básica)
+    -- Nota: Em ROBLOX, você precisará usar técnicas específicas para mover a câmera
+    local currentCFrame = camera.CFrame
+    local targetDirection = (targetPosition - currentCFrame.Position).Unit
+    local newCFrame = CFrame.lookAt(currentCFrame.Position, currentCFrame.Position + targetDirection)
+    
+    -- Interpolação suave
+    camera.CFrame = currentCFrame:Lerp(newCFrame, 1 / Config.smoothness)
+end
+
+-- Loop principal
+local function aimAssistLoop()
+    if Config.assistEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        currentTarget = findClosestTarget()
+        
+        if currentTarget then
+            smoothAim(currentTarget.Position)
+        end
     end
 end
 
--- Example Usage
-local ui = ModernUI.new("Modern GUI Example")
-
--- Create tabs and pages
-local aimTab = ui:CreateTab("Aim Assist")
-local visualTab = ui:CreateTab("Visual")
-local miscTab = ui:CreateTab("Misc")
-
-local aimPage = ui:CreatePage("Aim Assist")
-local visualPage = ui:CreatePage("Visual")
-local miscPage = ui:CreatePage("Misc")
-
--- Connect tabs to pages
-aimTab.MouseButton1Click:Connect(function()
-    ui:ShowPage("Aim Assist")
-end)
-
-visualTab.MouseButton1Click:Connect(function()
-    ui:ShowPage("Visual")
-end)
-
-miscTab.MouseButton1Click:Connect(function()
-    ui:ShowPage("Misc")
-end)
-
--- Show initial page
-ui:ShowPage("Aim Assist")
-
--- Add content to pages
--- Aim Assist Page
-local aimbotCheckbox = ui:CreateCheckboxOption(aimPage, "Enable Aimbot", function(checked)
-    if checked then
-        ui.LoadedScripts.aimbot = loadScript("aimbot")
-        if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.Toggle then
-            ui.LoadedScripts.aimbot.Toggle(true)
-        end
+-- Toggle do sistema
+local function toggleAimAssist()
+    Config.assistEnabled = not Config.assistEnabled
+    
+    if Config.assistEnabled then
+        print("Assistência de mira ATIVADA")
+        connection = RunService.Heartbeat:Connect(aimAssistLoop)
     else
-        if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.Toggle then
-            ui.LoadedScripts.aimbot.Toggle(false)
+        print("Assistência de mira DESATIVADA")
+        if connection then
+            connection:Disconnect()
+            connection = nil
         end
-        ui.LoadedScripts.aimbot = nil
+        currentTarget = nil
     end
-end)
-
-local autoFireCheckbox = ui:CreateCheckboxOption(aimPage, "Auto Fire", function(checked)
-    if checked then
-        ui.LoadedScripts.auto_fire = loadScript("auto_fire")
-        if ui.LoadedScripts.auto_fire and ui.LoadedScripts.auto_fire.Toggle then
-            ui.LoadedScripts.auto_fire.Toggle(true)
-        end
-    else
-        if ui.LoadedScripts.auto_fire and ui.LoadedScripts.auto_fire.Toggle then
-            ui.LoadedScripts.auto_fire.Toggle(false)
-        end
-        ui.LoadedScripts.auto_fire = nil
-    end
-end)
-
-local checkWallCheckbox = ui:CreateCheckboxOption(aimPage, "Check Wall", function(checked)
-    if checked then
-        ui.LoadedScripts.check_wall = loadScript("check_wall")
-        if ui.LoadedScripts.check_wall and ui.LoadedScripts.check_wall.Toggle then
-            ui.LoadedScripts.check_wall.Toggle(true)
-        end
-    else
-        if ui.LoadedScripts.check_wall and ui.LoadedScripts.check_wall.Toggle then
-            ui.LoadedScripts.check_wall.Toggle(false)
-        end
-        ui.LoadedScripts.check_wall = nil
-    end
-end)
-
-local checkWallCheckbox = ui:CreateCheckboxOption(aimPage, "Check Wall", function(checked)
-    if checked then
-        ui.LoadedScripts.check_wall = loadScript("check_wall.lua")
-        print("Check Wall carregado:", ui.LoadedScripts.check_wall ~= nil)
-    else
-        unloadScript("check_wall.lua")
-        ui.LoadedScripts.check_wall = nil
-        print("Check Wall descarregado")
-    end
-end)
-
-local fovSlider = ui:CreateSlider(aimPage, "Aimbot FOV", 1, 360, 90, function(value)
-    print("Aimbot FOV:", value)
-    if ui.LoadedScripts.aimbot and ui.LoadedScripts.aimbot.UpdateFOV then
-        ui.LoadedScripts.aimbot.UpdateFOV(value)
-    end
-end)
-
--- Visual Page
-local espOption = ui:CreateColorOption(visualPage, "ESP", Color3.fromRGB(255, 0, 0))
-local espBoxOption = ui:CreateColorOption(visualPage, "ESP Box", Color3.fromRGB(0, 255, 0))
-local espLineOption = ui:CreateColorOption(visualPage, "ESP Line", Color3.fromRGB(0, 0, 255))
-
-espOption.Checkbox.Toggle = function()
-    local checked = espOption.Checkbox.Toggle()
-    print("ESP:", checked, "Color:", espOption.ColorPicker.GetColor())
 end
 
--- Misc Page
-ui:CreateCheckboxOption(miscPage, "Bunny Hop", function(checked)
-    print("Bunny Hop:", checked)
+-- Bind da tecla CapsLock
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.CapsLock then
+        toggleAimAssist()
+    end
+end)
+
+-- Interface básica de configuração
+local function createConfigGui()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AimAssistConfig"
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 200)
+    frame.Position = UDim2.new(0, 10, 0, 10)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BackgroundTransparency = 0.3
+    frame.Parent = screenGui
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Text = "Aim Assist Config"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.BackgroundTransparency = 1
+    title.Parent = frame
+    
+    -- Adicione mais elementos de UI conforme necessário
+end
+
+-- Inicialização
+spawn(function()
+    wait(2) -- Espera o jogo carregar
+    createConfigGui()
+    print("Sistema de Assistência de Mira carregado!")
+    print("Pressione CapsLock para ativar/desativar")
 end)
