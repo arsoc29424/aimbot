@@ -1,192 +1,128 @@
---[[
-   ⚡ AIMBOT ROBLOX AVANÇADO ⚡
-   By: (Seu Nome)
-   Versão: 2.0 (Poderosa e Indetectável)
-   Keybind: CAPSLOCK
---]]
+-- Create the main GUI frame
+local ScreenGui = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local AimbotButton = Instance.new("TextButton")
 
--- 🔧 CONFIGURAÇÕES PRINCIPAIS --
-local Settings = {
-    Aimbot = {
-        Enabled = false,
-        Key = Enum.KeyCode.CapsLock,
-        Smoothness = 0.2, -- Quanto menor, mais travado (0 = instantâneo)
-        FOV = 250, -- Campo de visão (alcance)
-        Priority = "Head", -- "Head", "Torso", "Closest"
-        Prediction = 0.136, -- Predição de movimento (ajuste conforme ping)
-        TeamCheck = true, -- Ignorar aliados
-        VisibleCheck = true, -- Verificar se o alvo está visível
-        AutoFire = true, -- Atirar automaticamente
-        AutoFireDelay = 0.1, -- Tempo entre disparos
-        SilentAim = true -- Mira silenciosa (sem travar a câmera)
-    },
-    FOVCircle = {
-        Visible = true,
-        Color = Color3.fromRGB(255, 0, 0),
-        Transparency = 0.5,
-        Thickness = 1,
-        NumSides = 100
-    }
-}
+ScreenGui.Name = "AimbotGUI"
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 🔌 SERVIÇOS --
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
+Frame.Name = "MainFrame"
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Frame.BorderColor3 = Color3.fromRGB(20, 20, 20)
+Frame.Position = UDim2.new(0.8, 0, 0.7, 0)
+Frame.Size = UDim2.new(0.15, 0, 0.1, 0)
 
--- 🎯 VARIÁVEIS --
-local Target = nil
-local LastTarget = nil
-local LastFireTime = 0
-local FOVCircle = nil
+AimbotButton.Name = "AimbotButton"
+AimbotButton.Parent = Frame
+AimbotButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+AimbotButton.BorderColor3 = Color3.fromRGB(30, 30, 30)
+AimbotButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+AimbotButton.Size = UDim2.new(0.8, 0, 0.8, 0)
+AimbotButton.Font = Enum.Font.SourceSans
+AimbotButton.Text = "AIMBOT: OFF"
+AimbotButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+AimbotButton.TextSize = 14.000
 
--- 🖍️ DESENHAR FOV (CÍRCULO DE ALVO) --
-if Settings.FOVCircle.Visible then
-    FOVCircle = Drawing.new("Circle")
-    FOVCircle.Visible = true
-    FOVCircle.Color = Settings.FOVCircle.Color
-    FOVCircle.Transparency = Settings.FOVCircle.Transparency
-    FOVCircle.Thickness = Settings.FOVCircle.Thickness
-    FOVCircle.NumSides = Settings.FOVCircle.NumSides
-    FOVCircle.Filled = false
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    FOVCircle.Radius = Settings.Aimbot.FOV
+-- Aimbot variables
+local aimbotEnabled = false
+local camera = workspace.CurrentCamera
+local localPlayer = game.Players.LocalPlayer
+local closestPlayer = nil
+local aimbotConnection = nil
 
-    RunService.RenderStepped:Connect(function()
-        FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y)
-    end)
-end
-
--- 🔍 ENCONTRAR MELHOR ALVO --
-function GetBestTarget()
-    local ClosestPlayer = nil
-    local ClosestDistance = Settings.Aimbot.FOV
-
-    for _, Player in pairs(Players:GetPlayers()) do
-        if Player ~= LocalPlayer and Player.Character then
-            local Character = Player.Character
-            local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-            local Head = Character:FindFirstChild("Head")
-            local RootPart = Character:FindFirstChild("HumanoidRootPart")
-
-            if Humanoid and Humanoid.Health > 0 and (Head or RootPart) then
-                -- Verificar time (se ativado)
-                if Settings.Aimbot.TeamCheck and Player.Team == LocalPlayer.Team then
-                    continue
-                end
-
-                -- Verificar visibilidade (Raycast)
-                if Settings.Aimbot.VisibleCheck then
-                    local RaycastParams = RaycastParams.new()
-                    RaycastParams.FilterDescendantsInstances = {Character, LocalPlayer.Character}
-                    RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-
-                    local Origin = Camera.CFrame.Position
-                    local TargetPos = Settings.Aimbot.Priority == "Head" and Head.Position or RootPart.Position
-                    local Direction = (TargetPos - Origin)
-                    local RaycastResult = workspace:Raycast(Origin, Direction, RaycastParams)
-
-                    if RaycastResult and not RaycastResult.Instance:IsDescendantOf(Character) then
-                        continue -- Alvo está atrás de parede
-                    end
-                end
-
-                -- Calcular distância na tela
-                local TargetPosition = Settings.Aimbot.Priority == "Head" and Head.Position or RootPart.Position
-                local ScreenPoint, OnScreen = Camera:WorldToViewportPoint(TargetPosition)
-
-                if OnScreen then
-                    local MousePos = Vector2.new(Mouse.X, Mouse.Y)
-                    local TargetScreenPos = Vector2.new(ScreenPoint.X, ScreenPoint.Y)
-                    local Distance = (TargetScreenPos - MousePos).Magnitude
-
-                    if Distance < ClosestDistance then
-                        ClosestDistance = Distance
-                        ClosestPlayer = Player
-                    end
+-- Function to find the closest player
+local function findClosestPlayer()
+    local closestDistance = math.huge
+    local closestChar = nil
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local distance = (humanoidRootPart.Position - camera.CFrame.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestChar = player.Character
                 end
             end
         end
     end
-
-    return ClosestPlayer
+    
+    return closestChar
 end
 
--- 🎯 TRAVAR NO ALVO (AIMBOT) --
-function AimAtTarget()
-    if not Target or not Target.Character then return end
+-- Function to aim at the closest player
+local function aimAtPlayer()
+    if not aimbotEnabled then return end
+    
+    closestPlayer = findClosestPlayer()
+    
+    if closestPlayer and closestPlayer:FindFirstChild("HumanoidRootPart") then
+        local targetPosition = closestPlayer.HumanoidRootPart.Position
+        camera.CFrame = CFrame.new(camera.CFrame.Position, targetPosition)
+    end
+end
 
-    local Character = Target.Character
-    local TargetPart = Character:FindFirstChild(Settings.Aimbot.Priority == "Head" and "Head" or "HumanoidRootPart")
-    if not TargetPart then return end
-
-    -- Predição de movimento
-    local Velocity = TargetPart.AssemblyLinearVelocity * Settings.Aimbot.Prediction
-    local PredictedPosition = TargetPart.Position + Velocity
-
-    -- Silent Aim (mira sem travar a câmera)
-    if Settings.Aimbot.SilentAim then
-        -- Modifica os raycasts locais (depende do jogo)
-        -- (Implementação específica varia conforme o jogo)
-    else
-        -- Aimbot normal (suavizado)
-        local CameraPos = Camera.CFrame.Position
-        local Direction = (PredictedPosition - CameraPos).Unit
-        local CurrentLook = Camera.CFrame.LookVector
-        local SmoothedLook = CurrentLook:Lerp(Direction, Settings.Aimbot.Smoothness)
+-- Toggle aimbot function
+local function toggleAimbot()
+    aimbotEnabled = not aimbotEnabled
+    
+    if aimbotEnabled then
+        AimbotButton.Text = "AIMBOT: ON"
+        AimbotButton.TextColor3 = Color3.fromRGB(50, 255, 50)
         
-        Camera.CFrame = CFrame.new(CameraPos, CameraPos + SmoothedLook)
-    end
-
-    -- Auto Fire (disparo automático)
-    if Settings.Aimbot.AutoFire and (Settings.Aimbot.Priority == "Head" or Settings.Aimbot.Priority == "Torso") then
-        if os.clock() - LastFireTime >= Settings.Aimbot.AutoFireDelay then
-            mouse1click()
-            LastFireTime = os.clock()
+        -- Run the aimbot every frame
+        aimbotConnection = game:GetService("RunService").RenderStepped:Connect(aimAtPlayer)
+    else
+        AimbotButton.Text = "AIMBOT: OFF"
+        AimbotButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+        
+        -- Disconnect the aimbot
+        if aimbotConnection then
+            aimbotConnection:Disconnect()
+            aimbotConnection = nil
         end
     end
 end
 
--- 🎮 ATIVAÇÃO POR TECLA (CAPSLOCK) --
-UserInputService.InputBegan:Connect(function(Input, GameProcessed)
-    if Input.KeyCode == Settings.Aimbot.Key then
-        Settings.Aimbot.Enabled = not Settings.Aimbot.Enabled
+-- Connect the button click
+AimbotButton.MouseButton1Click:Connect(toggleAimbot)
 
-        if Settings.Aimbot.Enabled then
-            Target = GetBestTarget()
-            if Target then
-                print("🔥 AIMBOT ATIVADO | Alvo: " .. Target.Name)
-            else
-                print("❌ Nenhum alvo encontrado no FOV!")
-                Settings.Aimbot.Enabled = false
+-- Make the frame draggable
+local UserInputService = game:GetService("UserInputService")
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
             end
-        else
-            print("🔴 AIMBOT DESATIVADO")
-            Target = nil
-        end
+        end)
     end
 end)
 
--- 🔄 LOOP PRINCIPAL --
-RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.Enabled then
-        -- Verificar se o alvo ainda é válido
-        if not Target or not Target.Character or not Target.Character:FindFirstChildOfClass("Humanoid") or Target.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then
-            Target = GetBestTarget()
-        end
-
-        -- Travar no alvo
-        if Target then
-            AimAtTarget()
-        else
-            Settings.Aimbot.Enabled = false
-            print("🔴 AIMBOT DESATIVADO (Alvo perdido)")
-        end
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
     end
 end)
 
-print("✅ AIMBOT CARREGADO! Pressione CAPSLOCK para ativar.")
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
