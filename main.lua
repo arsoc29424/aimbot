@@ -1,10 +1,11 @@
--- GUI Script para Roblox - Aim Assist
--- Criado com design moderno e funcionalidades completas
+-- 🚀 ULTIMATE AIM ASSIST GUI - A MAIS ÉPICA DO ROBLOX! 🚀
+-- Design futurístico com animações insanas e efeitos visuais de outro mundo!
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
 local Mouse = Players.LocalPlayer:GetMouse()
 
 -- Variáveis principais
@@ -15,458 +16,949 @@ local playerGui = player:WaitForChild("PlayerGui")
 local aimAssistConfig = {
     aimBot = {
         enabled = false,
-        mode = "Toggle", -- "Toggle", "Hold", "Always"
-        targetParts = {"Head"}, -- Partes do corpo selecionadas
-        key = Enum.KeyCode.E -- Tecla padrão
+        mode = "Toggle",
+        targetParts = {"Head"},
+        key = Enum.KeyCode.E,
+        smoothness = 0.8,
+        fov = 200
     },
     autoFire = {
         enabled = false,
-        mode = "Toggle"
+        mode = "Toggle",
+        delay = 0.1
     },
     autoWall = {
         enabled = false,
-        mode = "Toggle"
+        mode = "Toggle",
+        penetration = 2
     },
-    checkWall = false
+    checkWall = false,
+    visuals = {
+        enabled = true,
+        showFOV = true,
+        showTarget = true,
+        rainbowMode = false
+    }
 }
 
--- Função para criar a GUI principal
-local function createMainGUI()
-    -- ScreenGui principal
+-- Sistema de partículas épico
+local function createParticleSystem(parent)
+    for i = 1, 15 do
+        local particle = Instance.new("Frame")
+        particle.Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4))
+        particle.Position = UDim2.new(0, math.random(0, parent.AbsoluteSize.X), 0, math.random(0, parent.AbsoluteSize.Y))
+        particle.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+        particle.BorderSizePixel = 0
+        particle.ZIndex = 100
+        particle.Parent = parent
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = particle
+        
+        -- Animação flutuante
+        local floatTween = TweenService:Create(particle, 
+            TweenInfo.new(math.random(2, 4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {
+                Position = UDim2.new(0, math.random(0, parent.AbsoluteSize.X), 0, math.random(0, parent.AbsoluteSize.Y)),
+                BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+            }
+        )
+        floatTween:Play()
+    end
+end
+
+-- Sistema de som épico
+local function playSound(soundId, volume)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxasset://sounds/" .. soundId .. ".mp3"
+    sound.Volume = volume or 0.5
+    sound.Parent = workspace
+    sound:Play()
+    
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+end
+
+-- Função para criar a GUI ULTIMATE
+local function createUltimateGUI()
+    -- ScreenGui com efeitos insanos
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AimAssistGUI"
+    screenGui.Name = "UltimateAimAssistGUI"
     screenGui.Parent = playerGui
     screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
     
-    -- Frame principal
+    -- Background com gradiente animado
+    local backgroundFrame = Instance.new("Frame")
+    backgroundFrame.Name = "BackgroundFrame"
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.Position = UDim2.new(0, 0, 0, 0)
+    backgroundFrame.BackgroundTransparency = 0.95
+    backgroundFrame.BorderSizePixel = 0
+    backgroundFrame.Parent = screenGui
+    
+    local bgGradient = Instance.new("UIGradient")
+    bgGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 30)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(30, 15, 60)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 30, 15))
+    }
+    bgGradient.Rotation = 45
+    bgGradient.Parent = backgroundFrame
+    
+    -- Animação do background
+    local bgTween = TweenService:Create(bgGradient, 
+        TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Rotation = 225}
+    )
+    bgTween:Play()
+    
+    -- Frame principal FUTURÍSTICO
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 450, 0, 600)
-    mainFrame.Position = UDim2.new(0.5, -225, 0.5, -300)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    mainFrame.Size = UDim2.new(0, 550, 0, 700)
+    mainFrame.Position = UDim2.new(0.5, -275, 0.5, -350)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
-    -- Adicionar cantos arredondados
+    -- Gradiente principal épico
+    local mainGradient = Instance.new("UIGradient")
+    mainGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 40)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 20, 80)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 40, 20))
+    }
+    mainGradient.Rotation = 135
+    mainGradient.Parent = mainFrame
+    
+    -- Cantos arredondados premium
     local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 12)
+    mainCorner.CornerRadius = UDim.new(0, 20)
     mainCorner.Parent = mainFrame
     
-    -- Adicionar sombra
-    local shadow = Instance.new("ImageLabel")
+    -- Borda NEON brilhante
+    local neonBorder = Instance.new("UIStroke")
+    neonBorder.Color = Color3.fromRGB(0, 255, 255)
+    neonBorder.Thickness = 3
+    neonBorder.Transparency = 0.3
+    neonBorder.Parent = mainFrame
+    
+    -- Animação da borda neon
+    local neonTween = TweenService:Create(neonBorder,
+        TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Color = Color3.fromRGB(255, 0, 255)}
+    )
+    neonTween:Play()
+    
+    -- Sombra épica 3D
+    local shadow = Instance.new("Frame")
     shadow.Name = "Shadow"
-    shadow.Size = UDim2.new(1, 20, 1, 20)
-    shadow.Position = UDim2.new(0, -10, 0, -10)
-    shadow.BackgroundTransparency = 1
-    shadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.8
+    shadow.Size = UDim2.new(1, 30, 1, 30)
+    shadow.Position = UDim2.new(0, -15, 0, -15)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.7
     shadow.ZIndex = -1
     shadow.Parent = mainFrame
     
-    -- Header
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 25)
+    shadowCorner.Parent = shadow
+    
+    -- Header ULTRA futurístico
     local header = Instance.new("Frame")
     header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 50)
+    header.Size = UDim2.new(1, 0, 0, 80)
     header.Position = UDim2.new(0, 0, 0, 0)
-    header.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    header.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
     header.BorderSizePixel = 0
     header.Parent = mainFrame
     
+    local headerGradient = Instance.new("UIGradient")
+    headerGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 20, 100)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 50, 200)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 100, 50))
+    }
+    headerGradient.Rotation = 90
+    headerGradient.Parent = header
+    
     local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 12)
+    headerCorner.CornerRadius = UDim.new(0, 20)
     headerCorner.Parent = header
     
-    -- Título
+    -- Título ÉPICO com efeitos
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Size = UDim2.new(1, -20, 1, 0)
-    title.Position = UDim2.new(0, 20, 0, 0)
+    title.Size = UDim2.new(1, -200, 1, 0)
+    title.Position = UDim2.new(0, 30, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🎯 AIM ASSIST CONTROLLER"
+    title.Text = "⚡ ULTIMATE AIM DESTROYER ⚡"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextScaled = true
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = header
     
-    -- Botão minimizar
-    local minimizeButton = Instance.new("TextButton")
-    minimizeButton.Name = "MinimizeButton"
-    minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-    minimizeButton.Position = UDim2.new(1, -75, 0, 10)
-    minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
-    minimizeButton.Text = "−"
-    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    minimizeButton.TextScaled = true
-    minimizeButton.Font = Enum.Font.GothamBold
-    minimizeButton.BorderSizePixel = 0
-    minimizeButton.Parent = header
+    -- Gradiente no texto
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 100))
+    }
+    titleGradient.Parent = title
     
-    local minimizeCorner = Instance.new("UICorner")
-    minimizeCorner.CornerRadius = UDim.new(0, 6)
-    minimizeCorner.Parent = minimizeButton
+    -- Animação do título
+    local titleTween = TweenService:Create(titleGradient,
+        TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Rotation = 360}
+    )
+    titleTween:Play()
+    
+    -- Subtítulo animado
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Size = UDim2.new(1, -200, 0, 20)
+    subtitle.Position = UDim2.new(0, 30, 1, -25)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "🔥 VERSÃO PREMIUM EXCLUSIVA 🔥"
+    subtitle.TextColor3 = Color3.fromRGB(255, 200, 0)
+    subtitle.TextScaled = true
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    subtitle.Parent = header
+    
+    -- Efeito blink no subtítulo
+    local blinkTween = TweenService:Create(subtitle,
+        TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {TextTransparency = 0.5}
+    )
+    blinkTween:Play()
+    
+    -- Botões futurísticos
+    local function createFuturisticButton(name, text, color, position, parent)
+        local button = Instance.new("TextButton")
+        button.Name = name
+        button.Size = UDim2.new(0, 45, 0, 45)
+        button.Position = position
+        button.BackgroundColor3 = color
+        button.Text = text
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.TextScaled = true
+        button.Font = Enum.Font.GothamBold
+        button.BorderSizePixel = 0
+        button.Parent = parent
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 12)
+        buttonCorner.Parent = button
+        
+        local buttonStroke = Instance.new("UIStroke")
+        buttonStroke.Color = Color3.fromRGB(255, 255, 255)
+        buttonStroke.Thickness = 2
+        buttonStroke.Transparency = 0.5
+        buttonStroke.Parent = button
+        
+        local buttonGradient = Instance.new("UIGradient")
+        buttonGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, color),
+            ColorSequenceKeypoint.new(1, Color3.new(color.R * 1.5, color.G * 1.5, color.B * 1.5))
+        }
+        buttonGradient.Rotation = 45
+        buttonGradient.Parent = button
+        
+        -- Efeitos hover insanos
+        button.MouseEnter:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50)}):Play()
+            TweenService:Create(buttonStroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
+            playSound("ButtonHover", 0.3)
+        end)
+        
+        button.MouseLeave:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.2), {Size = UDim2.new(0, 45, 0, 45)}):Play()
+            TweenService:Create(buttonStroke, TweenInfo.new(0.2), {Transparency = 0.5}):Play()
+        end)
+        
+        return button
+    end
+    
+    -- Botão minimizar ÉPICO
+    local minimizeButton = createFuturisticButton("MinimizeButton", "⬇", Color3.fromRGB(100, 200, 255), UDim2.new(1, -140, 0, 17.5), header)
+    
+    -- Botão configurações
+    local settingsButton = createFuturisticButton("SettingsButton", "⚙", Color3.fromRGB(255, 200, 100), UDim2.new(1, -90, 0, 17.5), header)
     
     -- Botão fechar
-    local closeButton = Instance.new("TextButton")
-    closeButton.Name = "CloseButton"
-    closeButton.Size = UDim2.new(0, 30, 0, 30)
-    closeButton.Position = UDim2.new(1, -40, 0, 10)
-    closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-    closeButton.Text = "✕"
-    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeButton.TextScaled = true
-    closeButton.Font = Enum.Font.GothamBold
-    closeButton.BorderSizePixel = 0
-    closeButton.Parent = header
+    local closeButton = createFuturisticButton("CloseButton", "✕", Color3.fromRGB(255, 100, 100), UDim2.new(1, -40, 0, 17.5), header)
     
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
-    closeCorner.Parent = closeButton
+    -- Container principal com scroll épico
+    local mainContainer = Instance.new("ScrollingFrame")
+    mainContainer.Name = "MainContainer"
+    mainContainer.Size = UDim2.new(1, -20, 1, -100)
+    mainContainer.Position = UDim2.new(0, 10, 0, 90)
+    mainContainer.BackgroundTransparency = 1
+    mainContainer.BorderSizePixel = 0
+    mainContainer.ScrollBarThickness = 8
+    mainContainer.ScrollBarImageColor3 = Color3.fromRGB(100, 255, 255)
+    mainContainer.CanvasSize = UDim2.new(0, 0, 0, 1200)
+    mainContainer.Parent = mainFrame
     
-    -- Seção Aim Assist
-    local aimAssistSection = Instance.new("Frame")
-    aimAssistSection.Name = "AimAssistSection"
-    aimAssistSection.Size = UDim2.new(1, -20, 0, 520)
-    aimAssistSection.Position = UDim2.new(0, 10, 0, 60)
-    aimAssistSection.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    aimAssistSection.BorderSizePixel = 0
-    aimAssistSection.Parent = mainFrame
+    -- Seção AIM ASSIST ÉPICA
+    local function createEpicSection(name, icon, yPos)
+        local section = Instance.new("Frame")
+        section.Name = name .. "Section"
+        section.Size = UDim2.new(1, -10, 0, 300)
+        section.Position = UDim2.new(0, 5, 0, yPos)
+        section.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+        section.BorderSizePixel = 0
+        section.Parent = mainContainer
+        
+        local sectionGradient = Instance.new("UIGradient")
+        sectionGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 60)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 30, 90))
+        }
+        sectionGradient.Rotation = 45
+        sectionGradient.Parent = section
+        
+        local sectionCorner = Instance.new("UICorner")
+        sectionCorner.CornerRadius = UDim.new(0, 15)
+        sectionCorner.Parent = section
+        
+        local sectionStroke = Instance.new("UIStroke")
+        sectionStroke.Color = Color3.fromRGB(100, 200, 255)
+        sectionStroke.Thickness = 2
+        sectionStroke.Transparency = 0.6
+        sectionStroke.Parent = section
+        
+        -- Título da seção com efeitos
+        local sectionTitle = Instance.new("TextLabel")
+        sectionTitle.Name = "SectionTitle"
+        sectionTitle.Size = UDim2.new(1, -20, 0, 50)
+        sectionTitle.Position = UDim2.new(0, 10, 0, 10)
+        sectionTitle.BackgroundTransparency = 1
+        sectionTitle.Text = icon .. " " .. string.upper(name)
+        sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        sectionTitle.TextScaled = true
+        sectionTitle.Font = Enum.Font.GothamBold
+        sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+        sectionTitle.Parent = section
+        
+        local titleGradient = Instance.new("UIGradient")
+        titleGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 150, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 255, 255))
+        }
+        titleGradient.Parent = sectionTitle
+        
+        return section
+    end
     
-    local sectionCorner = Instance.new("UICorner")
-    sectionCorner.CornerRadius = UDim.new(0, 8)
-    sectionCorner.Parent = aimAssistSection
+    local aimSection = createEpicSection("AIM ASSIST", "🎯", 10)
     
-    -- Título da seção
-    local sectionTitle = Instance.new("TextLabel")
-    sectionTitle.Name = "SectionTitle"
-    sectionTitle.Size = UDim2.new(1, -20, 0, 40)
-    sectionTitle.Position = UDim2.new(0, 10, 0, 10)
-    sectionTitle.BackgroundTransparency = 1
-    sectionTitle.Text = "🎯 AIM ASSIST"
-    sectionTitle.TextColor3 = Color3.fromRGB(100, 200, 255)
-    sectionTitle.TextScaled = true
-    sectionTitle.Font = Enum.Font.GothamBold
-    sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-    sectionTitle.Parent = aimAssistSection
-    
-    -- Container para os controles
-    local controlsContainer = Instance.new("ScrollingFrame")
-    controlsContainer.Name = "ControlsContainer"
-    controlsContainer.Size = UDim2.new(1, -20, 1, -60)
-    controlsContainer.Position = UDim2.new(0, 10, 0, 50)
-    controlsContainer.BackgroundTransparency = 1
-    controlsContainer.BorderSizePixel = 0
-    controlsContainer.ScrollBarThickness = 6
-    controlsContainer.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
-    controlsContainer.CanvasSize = UDim2.new(0, 0, 0, 800)
-    controlsContainer.Parent = aimAssistSection
-    
-    local yPosition = 0
-    
-    -- Função para criar controle com dropdown
-    local function createControl(name, description, configKey, hasTargetParts, hasKeyBind)
+    -- Função para criar controles ÉPICOS
+    local function createEpicControl(name, description, configKey, parent, yPos)
         local controlFrame = Instance.new("Frame")
         controlFrame.Name = name .. "Control"
-        controlFrame.Size = UDim2.new(1, -10, 0, hasTargetParts and 180 or (hasKeyBind and 140 or 100))
-        controlFrame.Position = UDim2.new(0, 5, 0, yPosition)
-        controlFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+        controlFrame.Size = UDim2.new(1, -20, 0, 60)
+        controlFrame.Position = UDim2.new(0, 10, 0, yPos)
+        controlFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
         controlFrame.BorderSizePixel = 0
-        controlFrame.Parent = controlsContainer
+        controlFrame.Parent = parent
         
         local controlCorner = Instance.new("UICorner")
-        controlCorner.CornerRadius = UDim.new(0, 6)
+        controlCorner.CornerRadius = UDim.new(0, 10)
         controlCorner.Parent = controlFrame
         
-        -- Checkbox
-        local checkbox = Instance.new("TextButton")
-        checkbox.Name = "Checkbox"
-        checkbox.Size = UDim2.new(0, 20, 0, 20)
-        checkbox.Position = UDim2.new(0, 10, 0, 10)
-        checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-        checkbox.Text = ""
-        checkbox.BorderSizePixel = 0
-        checkbox.Parent = controlFrame
+        local controlGradient = Instance.new("UIGradient")
+        controlGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 50, 100)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 50, 120))
+        }
+        controlGradient.Rotation = 90
+        controlGradient.Parent = controlFrame
         
-        local checkCorner = Instance.new("UICorner")
-        checkCorner.CornerRadius = UDim.new(0, 3)
-        checkCorner.Parent = checkbox
+        -- Toggle switch ÉPICO
+        local toggleBg = Instance.new("Frame")
+        toggleBg.Size = UDim2.new(0, 60, 0, 30)
+        toggleBg.Position = UDim2.new(0, 15, 0, 15)
+        toggleBg.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+        toggleBg.BorderSizePixel = 0
+        toggleBg.Parent = controlFrame
         
-        local checkMark = Instance.new("TextLabel")
-        checkMark.Size = UDim2.new(1, 0, 1, 0)
-        checkMark.BackgroundTransparency = 1
-        checkMark.Text = "✓"
-        checkMark.TextColor3 = Color3.fromRGB(100, 255, 100)
-        checkMark.TextScaled = true
-        checkMark.Font = Enum.Font.GothamBold
-        checkMark.Visible = false
-        checkMark.Parent = checkbox
+        local toggleCorner = Instance.new("UICorner")
+        toggleCorner.CornerRadius = UDim.new(1, 0)
+        toggleCorner.Parent = toggleBg
         
-        -- Label
+        local toggleSwitch = Instance.new("Frame")
+        toggleSwitch.Size = UDim2.new(0, 26, 0, 26)
+        toggleSwitch.Position = UDim2.new(0, 2, 0, 2)
+        toggleSwitch.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        toggleSwitch.BorderSizePixel = 0
+        toggleSwitch.Parent = toggleBg
+        
+        local switchCorner = Instance.new("UICorner")
+        switchCorner.CornerRadius = UDim.new(1, 0)
+        switchCorner.Parent = toggleSwitch
+        
+        local switchGlow = Instance.new("UIStroke")
+        switchGlow.Color = Color3.fromRGB(255, 255, 255)
+        switchGlow.Thickness = 3
+        switchGlow.Transparency = 0.7
+        switchGlow.Parent = toggleSwitch
+        
+        -- Label com efeitos
         local label = Instance.new("TextLabel")
-        label.Name = "Label"
-        label.Size = UDim2.new(0, 150, 0, 20)
-        label.Position = UDim2.new(0, 40, 0, 10)
+        label.Size = UDim2.new(0, 200, 0, 25)
+        label.Position = UDim2.new(0, 90, 0, 5)
         label.BackgroundTransparency = 1
-        label.Text = name
+        label.Text = "💫 " .. name
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
         label.TextScaled = true
-        label.Font = Enum.Font.Gotham
+        label.Font = Enum.Font.GothamBold
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = controlFrame
         
-        -- Dropdown para modo
-        local modeDropdown = Instance.new("TextButton")
-        modeDropdown.Name = "ModeDropdown"
-        modeDropdown.Size = UDim2.new(0, 120, 0, 25)
-        modeDropdown.Position = UDim2.new(0, 200, 0, 7.5)
-        modeDropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-        modeDropdown.Text = "Toggle ▼"
-        modeDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-        modeDropdown.TextScaled = true
-        modeDropdown.Font = Enum.Font.Gotham
-        modeDropdown.BorderSizePixel = 0
-        modeDropdown.Parent = controlFrame
+        local desc = Instance.new("TextLabel")
+        desc.Size = UDim2.new(0, 300, 0, 20)
+        desc.Position = UDim2.new(0, 90, 0, 30)
+        desc.BackgroundTransparency = 1
+        desc.Text = "✨ " .. description
+        desc.TextColor3 = Color3.fromRGB(200, 200, 255)
+        desc.TextSize = 12
+        desc.Font = Enum.Font.Gotham
+        desc.TextXAlignment = Enum.TextXAlignment.Left
+        desc.Parent = controlFrame
         
-        local dropdownCorner = Instance.new("UICorner")
-        dropdownCorner.CornerRadius = UDim.new(0, 4)
-        dropdownCorner.Parent = modeDropdown
+        -- Dropdown FUTURÍSTICO
+        local dropdown = Instance.new("TextButton")
+        dropdown.Size = UDim2.new(0, 100, 0, 35)
+        dropdown.Position = UDim2.new(1, -115, 0, 12.5)
+        dropdown.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+        dropdown.Text = "Toggle ▼"
+        dropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+        dropdown.TextScaled = true
+        dropdown.Font = Enum.Font.Gotham
+        dropdown.BorderSizePixel = 0
+        dropdown.Parent = controlFrame
         
-        -- Menu dropdown
-        local dropdownMenu = Instance.new("Frame")
-        dropdownMenu.Name = "DropdownMenu"
-        dropdownMenu.Size = UDim2.new(0, 120, 0, 90)
-        dropdownMenu.Position = UDim2.new(0, 200, 0, 35)
-        dropdownMenu.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-        dropdownMenu.BorderSizePixel = 0
-        dropdownMenu.Visible = false
-        dropdownMenu.ZIndex = 10
-        dropdownMenu.Parent = controlFrame
+        local dropCorner = Instance.new("UICorner")
+        dropCorner.CornerRadius = UDim.new(0, 8)
+        dropCorner.Parent = dropdown
         
-        local menuCorner = Instance.new("UICorner")
-        menuCorner.CornerRadius = UDim.new(0, 4)
-        menuCorner.Parent = dropdownMenu
+        local dropGradient = Instance.new("UIGradient")
+        dropGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 80, 160)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 80, 200))
+        }
+        dropGradient.Rotation = 45
+        dropGradient.Parent = dropdown
         
-        local modes = {"Toggle", "Hold", "Always"}
-        for i, mode in ipairs(modes) do
-            local modeButton = Instance.new("TextButton")
-            modeButton.Size = UDim2.new(1, 0, 0, 30)
-            modeButton.Position = UDim2.new(0, 0, 0, (i-1) * 30)
-            modeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-            modeButton.Text = mode
-            modeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            modeButton.TextScaled = true
-            modeButton.Font = Enum.Font.Gotham
-            modeButton.BorderSizePixel = 0
-            modeButton.Parent = dropdownMenu
+        -- Sistema de toggle
+        local isEnabled = false
+        
+        local function toggleControl()
+            isEnabled = not isEnabled
+            aimAssistConfig[configKey].enabled = isEnabled
             
-            modeButton.MouseButton1Click:Connect(function()
-                aimAssistConfig[configKey].mode = mode
-                modeDropdown.Text = mode .. " ▼"
-                dropdownMenu.Visible = false
-            end)
-        end
-        
-        -- Seleção de partes do corpo (apenas para Aim Bot)
-        if hasTargetParts then
-            local partsLabel = Instance.new("TextLabel")
-            partsLabel.Size = UDim2.new(1, -20, 0, 20)
-            partsLabel.Position = UDim2.new(0, 10, 0, 40)
-            partsLabel.BackgroundTransparency = 1
-            partsLabel.Text = "Partes do Corpo:"
-            partsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-            partsLabel.TextScaled = true
-            partsLabel.Font = Enum.Font.Gotham
-            partsLabel.TextXAlignment = Enum.TextXAlignment.Left
-            partsLabel.Parent = controlFrame
+            local targetPos = isEnabled and UDim2.new(0, 32, 0, 2) or UDim2.new(0, 2, 0, 2)
+            local targetColor = isEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+            local targetBgColor = isEnabled and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(80, 80, 120)
             
-            local bodyParts = {"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
-            local partsFrame = Instance.new("Frame")
-            partsFrame.Size = UDim2.new(1, -20, 0, 60)
-            partsFrame.Position = UDim2.new(0, 10, 0, 65)
-            partsFrame.BackgroundTransparency = 1
-            partsFrame.Parent = controlFrame
+            TweenService:Create(toggleSwitch, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+                Position = targetPos,
+                BackgroundColor3 = targetColor
+            }):Play()
             
-            for i, part in ipairs(bodyParts) do
-                local partCheck = Instance.new("TextButton")
-                partCheck.Size = UDim2.new(0, 15, 0, 15)
-                partCheck.Position = UDim2.new(0, ((i-1) % 3) * 130, 0, math.floor((i-1) / 3) * 25)
-                partCheck.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-                partCheck.Text = ""
-                partCheck.BorderSizePixel = 0
-                partCheck.Parent = partsFrame
-                
-                local partCorner = Instance.new("UICorner")
-                partCorner.CornerRadius = UDim.new(0, 2)
-                partCorner.Parent = partCheck
-                
-                local partMark = Instance.new("TextLabel")
-                partMark.Size = UDim2.new(1, 0, 1, 0)
-                partMark.BackgroundTransparency = 1
-                partMark.Text = "✓"
-                partMark.TextColor3 = Color3.fromRGB(100, 255, 100)
-                partMark.TextScaled = true
-                partMark.Font = Enum.Font.GothamBold
-                partMark.Visible = part == "Head"
-                partMark.Parent = partCheck
-                
-                local partLabel = Instance.new("TextLabel")
-                partLabel.Size = UDim2.new(0, 100, 0, 15)
-                partLabel.Position = UDim2.new(0, ((i-1) % 3) * 130 + 20, 0, math.floor((i-1) / 3) * 25)
-                partLabel.BackgroundTransparency = 1
-                partLabel.Text = part
-                partLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                partLabel.TextSize = 12
-                partLabel.Font = Enum.Font.Gotham
-                partLabel.TextXAlignment = Enum.TextXAlignment.Left
-                partLabel.Parent = partsFrame
-                
-                partCheck.MouseButton1Click:Connect(function()
-                    local isSelected = partMark.Visible
-                    partMark.Visible = not isSelected
+            TweenService:Create(toggleBg, TweenInfo.new(0.3), {
+                BackgroundColor3 = targetBgColor
+            }):Play()
+            
+            -- Efeito de explosão
+            if isEnabled then
+                playSound("PowerUp", 0.4)
+                for i = 1, 5 do
+                    local spark = Instance.new("Frame")
+                    spark.Size = UDim2.new(0, 4, 0, 4)
+                    spark.Position = UDim2.new(0, 45, 0, 15)
+                    spark.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+                    spark.BorderSizePixel = 0
+                    spark.Parent = controlFrame
                     
-                    if not isSelected then
-                        if not table.find(aimAssistConfig[configKey].targetParts, part) then
-                            table.insert(aimAssistConfig[configKey].targetParts, part)
-                        end
-                    else
-                        local index = table.find(aimAssistConfig[configKey].targetParts, part)
-                        if index then
-                            table.remove(aimAssistConfig[configKey].targetParts, index)
-                        end
-                    end
-                end)
+                    local sparkCorner = Instance.new("UICorner")
+                    sparkCorner.CornerRadius = UDim.new(1, 0)
+                    sparkCorner.Parent = spark
+                    
+                    local angle = math.rad(i * 72)
+                    local distance = 30
+                    
+                    TweenService:Create(spark, TweenInfo.new(0.5), {
+                        Position = UDim2.new(0, 45 + math.cos(angle) * distance, 0, 15 + math.sin(angle) * distance),
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(0, 0, 0, 0)
+                    }):Play()
+                    
+                    wait(0.5)
+                    spark:Destroy()
+                end
+            else
+                playSound("PowerDown", 0.3)
             end
         end
         
-        -- Configuração de tecla (apenas para Aim Bot)
-        if hasKeyBind then
-            local keyLabel = Instance.new("TextLabel")
-            keyLabel.Size = UDim2.new(0, 80, 0, 20)
-            keyLabel.Position = UDim2.new(0, 10, 0, hasTargetParts and 135 or 40)
-            keyLabel.BackgroundTransparency = 1
-            keyLabel.Text = "Tecla:"
-            keyLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-            keyLabel.TextScaled = true
-            keyLabel.Font = Enum.Font.Gotham
-            keyLabel.TextXAlignment = Enum.TextXAlignment.Left
-            keyLabel.Parent = controlFrame
-            
-            local keyButton = Instance.new("TextButton")
-            keyButton.Size = UDim2.new(0, 60, 0, 25)
-            keyButton.Position = UDim2.new(0, 100, 0, hasTargetParts and 132.5 or 37.5)
-            keyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-            keyButton.Text = "E"
-            keyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            keyButton.TextScaled = true
-            keyButton.Font = Enum.Font.Gotham
-            keyButton.BorderSizePixel = 0
-            keyButton.Parent = controlFrame
-            
-            local keyCorner = Instance.new("UICorner")
-            keyCorner.CornerRadius = UDim.new(0, 4)
-            keyCorner.Parent = keyButton
-            
-            keyButton.MouseButton1Click:Connect(function()
-                keyButton.Text = "Press..."
-                local connection
-                connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
-                        aimAssistConfig[configKey].key = input.KeyCode
-                        keyButton.Text = input.KeyCode.Name
-                        connection:Disconnect()
-                    end
-                end)
-            end)
-        end
+        toggleBg.MouseButton1Click:Connect(toggleControl)
         
-        -- Eventos
-        checkbox.MouseButton1Click:Connect(function()
-            aimAssistConfig[configKey].enabled = not aimAssistConfig[configKey].enabled
-            checkMark.Visible = aimAssistConfig[configKey].enabled
-            checkbox.BackgroundColor3 = aimAssistConfig[configKey].enabled and Color3.fromRGB(80, 160, 80) or Color3.fromRGB(60, 60, 80)
-        end)
-        
-        modeDropdown.MouseButton1Click:Connect(function()
-            dropdownMenu.Visible = not dropdownMenu.Visible
-        end)
-        
-        yPosition = yPosition + controlFrame.Size.Y.Offset + 10
         return controlFrame
     end
     
-    -- Criar controles
-    createControl("Aim Bot", "Gruda a mira no alvo", "aimBot", true, true)
-    createControl("Auto Fire", "Atira automaticamente no alvo", "autoFire", false, false)
-    createControl("Auto Wall", "Atira através de paredes quebráveis", "autoWall", false, false)
+    -- Criar controles épicos
+    createEpicControl("AIM BOT", "Lock automático no inimigo", "aimBot", aimSection, 70)
+    createEpicControl("AUTO FIRE", "Disparo automático inteligente", "autoFire", aimSection, 140)
+    createEpicControl("AUTO WALL", "Penetração de paredes", "autoWall", aimSection, 210)
     
-    -- Check Wall (sem dropdown)
-    local checkWallFrame = Instance.new("Frame")
-    checkWallFrame.Name = "CheckWallControl"
-    checkWallFrame.Size = UDim2.new(1, -10, 0, 60)
-    checkWallFrame.Position = UDim2.new(0, 5, 0, yPosition)
-    checkWallFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-    checkWallFrame.BorderSizePixel = 0
-    checkWallFrame.Parent = controlsContainer
+    -- Seção de estatísticas em tempo real
+    local statsSection = createEpicSection("BATTLE STATS", "📊", 330)
     
-    local wallCorner = Instance.new("UICorner")
-    wallCorner.CornerRadius = UDim.new(0, 6)
-    wallCorner.Parent = checkWallFrame
+    local function createStatDisplay(name, value, icon, parent, xPos)
+        local statFrame = Instance.new("Frame")
+        statFrame.Size = UDim2.new(0, 150, 0, 80)
+        statFrame.Position = UDim2.new(0, xPos, 0, 70)
+        statFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+        statFrame.BorderSizePixel = 0
+        statFrame.Parent = parent
+        
+        local statCorner = Instance.new("UICorner")
+        statCorner.CornerRadius = UDim.new(0, 12)
+        statCorner.Parent = statFrame
+        
+        local statGradient = Instance.new("UIGradient")
+        statGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 80)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 40, 120))
+        }
+        statGradient.Rotation = 135
+        statGradient.Parent = statFrame
+        
+        local iconLabel = Instance.new("TextLabel")
+        iconLabel.Size = UDim2.new(1, 0, 0, 30)
+        iconLabel.Position = UDim2.new(0, 0, 0, 5)
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.Text = icon
+        iconLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+        iconLabel.TextScaled = true
+        iconLabel.Font = Enum.Font.GothamBold
+        iconLabel.Parent = statFrame
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0, 20)
+        nameLabel.Position = UDim2.new(0, 0, 0, 35)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = name
+        nameLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+        nameLabel.TextSize = 14
+        nameLabel.Font = Enum.Font.Gotham
+        nameLabel.Parent = statFrame
+        
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Size = UDim2.new(1, 0, 0, 25)
+        valueLabel.Position = UDim2.new(0, 0, 0, 50)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.Text = value
+        valueLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        valueLabel.TextScaled = true
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.Parent = statFrame
+        
+        return valueLabel
+    end
     
-    local wallCheckbox = Instance.new("TextButton")
-    wallCheckbox.Name = "Checkbox"
-    wallCheckbox.Size = UDim2.new(0, 20, 0, 20)
-    wallCheckbox.Position = UDim2.new(0, 10, 0, 10)
-    wallCheckbox.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    wallCheckbox.Text = ""
-    wallCheckbox.BorderSizePixel = 0
-    wallCheckbox.Parent = checkWallFrame
+    local killsLabel = createStatDisplay("KILLS", "0", "💀", statsSection, 10)
+    local accuracyLabel = createStatDisplay("ACCURACY", "100%", "🎯", statsSection, 170)
+    local streakLabel = createStatDisplay("STREAK", "0", "🔥", statsSection, 330)
     
-    local wallCheckCorner = Instance.new("UICorner")
-    wallCheckCorner.CornerRadius = UDim.new(0, 3)
-    wallCheckCorner.Parent = wallCheckbox
+    -- Seção de configurações visuais
+    local visualSection = createEpicSection("VISUAL HACKS", "👁️", 650)
     
-    local wallCheckMark = Instance.new("TextLabel")
-    wallCheckMark.Size = UDim2.new(1, 0, 1, 0)
-    wallCheckMark.BackgroundTransparency = 1
-    wallCheckMark.Text = "✓"
-    wallCheckMark.TextColor3 = Color3.fromRGB(100, 255, 100)
-    wallCheckMark.TextScaled = true
-    wallCheckMark.Font = Enum.Font.GothamBold
-    wallCheckMark.Visible = false
-    wallCheckMark.Parent = wallCheckbox
+    -- FOV Circle ÉPICO
+    local fovFrame = Instance.new("Frame")
+    fovFrame.Size = UDim2.new(1, -20, 0, 100)
+    fovFrame.Position = UDim2.new(0, 10, 0, 70)
+    fovFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+    fovFrame.BorderSizePixel = 0
+    fovFrame.Parent = visualSection
     
-    local wallLabel = Instance.new("TextLabel")
-    wallLabel.Name = "Label"
-    wallLabel.Size = UDim2.new(1, -50, 0, 20)
-    wallLabel.Position = UDim2.new(0, 40, 0, 10)
-    wallLabel.BackgroundTransparency = 1
-    wallLabel.Text = "Check Wall"
-    wallLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    wallLabel.TextScaled = true
-    wallLabel.Font = Enum.Font.Gotham
-    wallLabel.TextXAlignment = Enum.TextXAlignment.Left
-    wallLabel.Parent = checkWallFrame
+    local fovCorner = Instance.new("UICorner")
+    fovCorner.CornerRadius = UDim.new(0, 10)
+    fovCorner.Parent = fovFrame
     
-    local wallDesc = Instance.new("TextLabel")
-    wallDesc.Size = UDim2.new(1, -20, 0, 25)
-    wallDesc.Position = UDim2.new(0, 10, 0, 30)
-    wallDesc.BackgroundTransparency = 1
-    wallDesc.Text = "Desativa todas as funções se o inimigo estiver atrás de parede"
-    wallDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
-    wallDesc.TextSize = 10
-    wallDesc.Font = Enum.Font.Gotham
-    wallDesc.TextWrapped = true
-    wallDesc.TextXAlignment = Enum.TextXAlignment.Left
-    wallDesc.Parent = checkWallFrame
+    local fovLabel = Instance.new("TextLabel")
+    fovLabel.Size = UDim2.new(0, 100, 0, 30)
+    fovLabel.Position = UDim2.new(0, 10, 0, 10)
+    fovLabel.BackgroundTransparency = 1
+    fovLabel.Text = "🎯 FOV SIZE"
+    fovLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fovLabel.TextScaled = true
+    fovLabel.Font = Enum.Font.GothamBold
+    fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+    fovLabel.Parent = fovFrame
     
-    wallCheckbox.MouseButton1Click:Connect(function()
-        aimAssistConfig.checkWall = not aimAssistConfig.checkWall
-        wallCheckMark.Visible = aimAssistConfig.checkWall
-        wallCheckbox.BackgroundColor3 = aimAssistConfig.checkWall and Color3.fromRGB(80, 160, 80) or Color3.fromRGB(60, 60, 80)
+    -- Slider ÉPICO
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(0, 300, 0, 20)
+    sliderBg.Position = UDim2.new(0, 10, 0, 50)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+    sliderBg.BorderSizePixel = 0
+    sliderBg.Parent = fovFrame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(1, 0)
+    sliderCorner.Parent = sliderBg
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+    sliderFill.Position = UDim2.new(0, 0, 0, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBg
+    
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    fillCorner.Parent = sliderFill
+    
+    local sliderKnob = Instance.new("Frame")
+    sliderKnob.Size = UDim2.new(0, 30, 0, 30)
+    sliderKnob.Position = UDim2.new(0.5, -15, 0, -5)
+    sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderKnob.BorderSizePixel = 0
+    sliderKnob.Parent = sliderBg
+    
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(1, 0)
+    knobCorner.Parent = sliderKnob
+    
+    local knobGlow = Instance.new("UIStroke")
+    knobGlow.Color = Color3.fromRGB(100, 255, 255)
+    knobGlow.Thickness = 3
+    knobGlow.Parent = sliderKnob
+    
+    local fovValueLabel = Instance.new("TextLabel")
+    fovValueLabel.Size = UDim2.new(0, 50, 0, 30)
+    fovValueLabel.Position = UDim2.new(1, -60, 0, 10)
+    fovValueLabel.BackgroundTransparency = 1
+    fovValueLabel.Text = "200"
+    fovValueLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    fovValueLabel.TextScaled = true
+    fovValueLabel.Font = Enum.Font.GothamBold
+    fovValueLabel.Parent = fovFrame
+    
+    -- Sistema de minimização ULTRA
+    local isMinimized = false
+    local originalSize = mainFrame.Size
+    
+    local function toggleMinimize()
+        isMinimized = not isMinimized
+        
+        local targetSize = isMinimized and UDim2.new(0, 550, 0, 80) or originalSize
+        local targetText = isMinimized and "⬆" or "⬇"
+        
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        local sizeTween = TweenService:Create(mainFrame, tweenInfo, {Size = targetSize})
+        
+        sizeTween:Play()
+        minimizeButton.Text = targetText
+        
+        mainContainer.Visible = not isMinimized
+        
+        if isMinimized then
+            playSound("Minimize", 0.4)
+            -- Efeito de implosão
+            for i = 1, 10 do
+                local particle = Instance.new("Frame")
+                particle.Size = UDim2.new(0, 6, 0, 6)
+                particle.Position = UDim2.new(0.5, 0, 0.5, 0)
+                particle.BackgroundColor3 = Color3.fromHSV(i/10, 1, 1)
+                particle.BorderSizePixel = 0
+                particle.Parent = mainFrame
+                
+                local particleCorner = Instance.new("UICorner")
+                particleCorner.CornerRadius = UDim.new(1, 0)
+                particleCorner.Parent = particle
+                
+                local angle = math.rad(i * 36)
+                TweenService:Create(particle, TweenInfo.new(0.8), {
+                    Position = UDim2.new(0.5 + math.cos(angle) * 2, 0, 0.5 + math.sin(angle) * 2, 0),
+                    Size = UDim2.new(0, 0, 0, 0),
+                    BackgroundTransparency = 1
+                }):Play()
+                
+                wait(0.8)
+                particle:Destroy()
+            end
+        else
+            playSound("Expand", 0.4)
+        end
+    end
+    
+    minimizeButton.MouseButton1Click:Connect(toggleMinimize)
+    
+    -- Funcionalidades do Aim Assist ÉPICAS
+    local function getClosestEnemy()
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+        
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Humanoid") then
+                if otherPlayer.Character.Humanoid.Health > 0 then
+                    local distance = (otherPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+                    
+                    if distance < aimAssistConfig.aimBot.fov and distance < shortestDistance then
+                        -- Check wall if enabled
+                        if aimAssistConfig.checkWall then
+                            local ray = Ray.new(
+                                player.Character.HumanoidRootPart.Position,
+                                (otherPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Unit * distance
+                            )
+                            local hit, position = workspace:FindPartOnRay(ray, player.Character)
+                            
+                            if hit and hit.Parent ~= otherPlayer.Character then
+                                continue -- Skip if there's a wall
+                            end
+                        end
+                        
+                        closestPlayer = otherPlayer
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+        
+        return closestPlayer
+    end
+    
+    local function aimAtPlayer(targetPlayer)
+        if not targetPlayer or not targetPlayer.Character then return end
+        
+        local targetPart = nil
+        for _, partName in pairs(aimAssistConfig.aimBot.targetParts) do
+            if targetPlayer.Character:FindFirstChild(partName) then
+                targetPart = targetPlayer.Character[partName]
+                break
+            end
+        end
+        
+        if targetPart then
+            local camera = workspace.CurrentCamera
+            local targetPosition = targetPart.Position
+            
+            -- Smooth aiming with prediction
+            local targetVelocity = targetPlayer.Character.HumanoidRootPart.Velocity
+            local distance = (targetPosition - camera.CFrame.Position).Magnitude
+            local timeToTarget = distance / 1000 -- Assuming bullet speed
+            local predictedPosition = targetPosition + (targetVelocity * timeToTarget)
+            
+            local currentLook = camera.CFrame.LookVector
+            local targetLook = (predictedPosition - camera.CFrame.Position).Unit
+            local smoothedLook = currentLook:lerp(targetLook, aimAssistConfig.aimBot.smoothness)
+            
+            camera.CFrame = CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + smoothedLook)
+        end
+    end
+    
+    -- Sistema de auto fire
+    local function shouldAutoFire(targetPlayer)
+        if not aimAssistConfig.autoFire.enabled or not targetPlayer then return false end
+        
+        local camera = workspace.CurrentCamera
+        local ray = camera:ScreenPointToRay(Mouse.X, Mouse.Y)
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {player.Character}
+        
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+        
+        if result and result.Instance.Parent == targetPlayer.Character then
+            local hitPart = result.Instance.Name
+            return table.find({"Head", "Torso", "UpperTorso", "LowerTorso", "LeftUpperLeg", "RightUpperLeg"}, hitPart) ~= nil
+        end
+        
+        return false
+    end
+    
+    -- Main aimbot loop
+    local aimConnection = nil
+    local isAiming = false
+    
+    local function startAiming()
+        if isAiming then return end
+        isAiming = true
+        
+        aimConnection = RunService.Heartbeat:Connect(function()
+            if not aimAssistConfig.aimBot.enabled then return end
+            
+            local target = getClosestEnemy()
+            if target then
+                aimAtPlayer(target)
+                
+                -- Auto fire
+                if shouldAutoFire(target) then
+                    mouse1click()
+                end
+                
+                -- Update target indicator
+                if aimAssistConfig.visuals.showTarget then
+                    -- Visual target indication could go here
+                end
+            end
+        end)
+    end
+    
+    local function stopAiming()
+        if not isAiming then return end
+        isAiming = false
+        
+        if aimConnection then
+            aimConnection:Disconnect()
+            aimConnection = nil
+        end
+    end
+    
+    -- Input handling épico
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == aimAssistConfig.aimBot.key then
+            if aimAssistConfig.aimBot.mode == "Toggle" then
+                if isAiming then
+                    stopAiming()
+                else
+                    startAiming()
+                end
+            elseif aimAssistConfig.aimBot.mode == "Hold" then
+                startAiming()
+            end
+        end
     end)
     
-    -- Funcionalidade de arrastar
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == aimAssistConfig.aimBot.key and aimAssistConfig.aimBot.mode == "Hold" then
+            stopAiming()
+        end
+    end)
+    
+    -- Always mode
+    RunService.Heartbeat:Connect(function()
+        if aimAssistConfig.aimBot.enabled and aimAssistConfig.aimBot.mode == "Always" then
+            if not isAiming then
+                startAiming()
+            end
+        end
+    end)
+    
+    -- Sistema de estatísticas em tempo real
+    local kills = 0
+    local shots = 0
+    local hits = 0
+    local streak = 0
+    
+    local function updateStats()
+        killsLabel.Text = tostring(kills)
+        accuracyLabel.Text = shots > 0 and math.floor((hits/shots) * 100) .. "%" or "100%"
+        streakLabel.Text = tostring(streak)
+        
+        -- Rainbow mode para stats
+        if aimAssistConfig.visuals.rainbowMode then
+            local time = tick()
+            killsLabel.TextColor3 = Color3.fromHSV((time * 0.5) % 1, 1, 1)
+            accuracyLabel.TextColor3 = Color3.fromHSV((time * 0.5 + 0.33) % 1, 1, 1)
+            streakLabel.TextColor3 = Color3.fromHSV((time * 0.5 + 0.66) % 1, 1, 1)
+        end
+    end
+    
+    RunService.Heartbeat:Connect(updateStats)
+    
+    -- Sistema de partículas na GUI
+    createParticleSystem(mainFrame)
+    
+    -- Sistema de notificações ÉPICAS
+    local function createEpicNotification(text, color, icon)
+        local notifGui = playerGui:FindFirstChild("EpicNotificationGUI")
+        if not notifGui then
+            notifGui = Instance.new("ScreenGui")
+            notifGui.Name = "EpicNotificationGUI"
+            notifGui.Parent = playerGui
+            notifGui.ResetOnSpawn = false
+        end
+        
+        local notification = Instance.new("Frame")
+        notification.Size = UDim2.new(0, 350, 0, 80)
+        notification.Position = UDim2.new(1, 0, 0, 100 + (#notifGui:GetChildren() - 1) * 90)
+        notification.BackgroundColor3 = color or Color3.fromRGB(40, 40, 80)
+        notification.BorderSizePixel = 0
+        notification.Parent = notifGui
+        
+        local notifCorner = Instance.new("UICorner")
+        notifCorner.CornerRadius = UDim.new(0, 15)
+        notifCorner.Parent = notification
+        
+        local notifGradient = Instance.new("UIGradient")
+        notifGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, color),
+            ColorSequenceKeypoint.new(1, Color3.new(color.R * 1.5, color.G * 1.5, color.B * 1.5))
+        }
+        notifGradient.Rotation = 45
+        notifGradient.Parent = notification
+        
+        local notifStroke = Instance.new("UIStroke")
+        notifStroke.Color = Color3.fromRGB(255, 255, 255)
+        notifStroke.Thickness = 2
+        notifStroke.Transparency = 0.5
+        notifStroke.Parent = notification
+        
+        local iconLabel = Instance.new("TextLabel")
+        iconLabel.Size = UDim2.new(0, 50, 0, 50)
+        iconLabel.Position = UDim2.new(0, 15, 0, 15)
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.Text = icon or "🔥"
+        iconLabel.TextScaled = true
+        iconLabel.Font = Enum.Font.GothamBold
+        iconLabel.Parent = notification
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, -80, 1, 0)
+        textLabel.Position = UDim2.new(0, 70, 0, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = text
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.TextWrapped = true
+        textLabel.Parent = notification
+        
+        -- Animação de entrada ÉPICA
+        local tweenIn = TweenService:Create(notification, 
+            TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Position = UDim2.new(1, -360, 0, 100 + (#notifGui:GetChildren() - 2) * 90)}
+        )
+        tweenIn:Play()
+        
+        playSound("Notification", 0.6)
+        
+        -- Auto-remover
+        wait(4)
+        local tweenOut = TweenService:Create(notification,
+            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+            {Position = UDim2.new(1, 0, 0, 100 + (#notifGui:GetChildren() - 2) * 90)}
+        )
+        tweenOut:Play()
+        tweenOut.Completed:Connect(function()
+            notification:Destroy()
+        end)
+    end
+    
+    -- Funcionalidade de arrastar ÉPICA
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -492,353 +984,75 @@ local function createMainGUI()
         end
     end)
     
-    -- Fechar GUI
+    -- Botão fechar
     closeButton.MouseButton1Click:Connect(function()
+        playSound("Close", 0.5)
+        
+        -- Efeito de desintegração
+        for i = 1, 20 do
+            local fragment = Instance.new("Frame")
+            fragment.Size = UDim2.new(0, math.random(10, 30), 0, math.random(10, 30))
+            fragment.Position = UDim2.new(math.random(), 0, math.random(), 0)
+            fragment.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+            fragment.BorderSizePixel = 0
+            fragment.Parent = mainFrame
+            
+            TweenService:Create(fragment, TweenInfo.new(1), {
+                Position = UDim2.new(math.random(-1, 2), 0, math.random(-1, 2), 0),
+                Size = UDim2.new(0, 0, 0, 0),
+                BackgroundTransparency = 1,
+                Rotation = math.random(-180, 180)
+            }):Play()
+        end
+        
+        wait(1)
         screenGui:Destroy()
     end)
     
     return screenGui
 end
 
--- Funções do Aim Assist
-local function raycast(origin, direction, distance)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {player.Character}
-    
-    local raycastResult = workspace:Raycast(origin, direction * distance, raycastParams)
-    return raycastResult
-end
-
-local function isWallBreakable(part)
-    -- Verifica se a parede é quebrável
-    if part and part.Parent then
-        return part.CanCollide == false or part.Transparency > 0.5 or part.Material == Enum.Material.Glass
-    end
-    return false
-end
-
-local function checkWallBetweenTargets(start, target)
-    local direction = (target - start).Unit
-    local distance = (target - start).Magnitude
-    
-    local raycastResult = raycast(start, direction, distance)
-    
-    if raycastResult then
-        if aimAssistConfig.autoWall.enabled then
-            return not isWallBreakable(raycastResult.Instance)
-        else
-            return true -- Há parede
-        end
-    end
-    
-    return false -- Sem parede
-end
-
-local function getClosestTarget()
-    local closestTarget = nil
-    local closestDistance = math.huge
-    
-    for _, targetPlayer in ipairs(Players:GetPlayers()) do
-        if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
-            local character = targetPlayer.Character
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            
-            if humanoidRootPart then
-                local distance = (humanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
-                
-                -- Verificar se há parede entre o jogador e o alvo
-                if aimAssistConfig.checkWall then
-                    local hasWall = checkWallBetweenTargets(
-                        player.Character.HumanoidRootPart.Position,
-                        humanoidRootPart.Position
-                    )
-                    
-                    if hasWall then
-                        continue -- Pular este alvo se há parede
-                    end
-                end
-                
-                if distance < closestDistance then
-                    closestDistance = distance
-                    closestTarget = character
-                end
-            end
-        end
-    end
-    
-    return closestTarget
-end
-
-local function aimAtTarget(target)
-    if not target then return end
-    
-    for _, partName in ipairs(aimAssistConfig.aimBot.targetParts) do
-        local targetPart = target:FindFirstChild(partName)
-        if targetPart then
-            local camera = workspace.CurrentCamera
-            camera.CFrame = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
-            break
-        end
-    end
-end
-
-local function shouldAutoFire(target)
-    if not target or not aimAssistConfig.autoFire.enabled then return false end
-    
-    local camera = workspace.CurrentCamera
-    local ray = camera:ScreenPointToRay(Mouse.X, Mouse.Y)
-    
-    local raycastResult = raycast(ray.Origin, ray.Direction, 1000)
-    
-    if raycastResult and raycastResult.Instance then
-        local hitCharacter = raycastResult.Instance.Parent
-        if hitCharacter == target then
-            local hitPart = raycastResult.Instance.Name
-            return table.find({"Head", "Torso", "Left Leg", "Right Leg"}, hitPart) ~= nil
-        end
-    end
-    
-    return false
-end
-
--- Sistema principal de aimbot
-local isAiming = false
-local aimConnection = nil
-
-local function startAiming()
-    if isAiming then return end
-    isAiming = true
-    
-    aimConnection = RunService.Heartbeat:Connect(function()
-        if not aimAssistConfig.aimBot.enabled then return end
-        
-        local target = getClosestTarget()
-        if target then
-            aimAtTarget(target)
-            
-            -- Auto Fire
-            if shouldAutoFire(target) then
-                Mouse1Click()
-            end
-        end
-    end)
-end
-
-local function stopAiming()
-    if not isAiming then return end
-    isAiming = false
-    
-    if aimConnection then
-        aimConnection:Disconnect()
-        aimConnection = nil
-    end
-end
-
--- Input handling
+-- Sistema de ativação
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    if input.KeyCode == aimAssistConfig.aimBot.key then
-        if aimAssistConfig.aimBot.mode == "Toggle" then
-            if isAiming then
-                stopAiming()
-            else
-                startAiming()
-            end
-        elseif aimAssistConfig.aimBot.mode == "Hold" then
-            startAiming()
-        end
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == aimAssistConfig.aimBot.key and aimAssistConfig.aimBot.mode == "Hold" then
-        stopAiming()
-    end
-end)
-
--- Always On mode
-RunService.Heartbeat:Connect(function()
-    if aimAssistConfig.aimBot.enabled and aimAssistConfig.aimBot.mode == "Always" then
-        if not isAiming then
-            startAiming()
-        end
-    elseif aimAssistConfig.aimBot.mode ~= "Always" and isAiming and aimAssistConfig.aimBot.mode ~= "Hold" then
-        -- Para modos que não são Always, para o aimbot se não estiver em toggle ativo
-    end
-end)
-
--- Função para ativar/desativar GUI com tecla
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.Insert then -- Tecla INSERT para abrir/fechar GUI
-        if playerGui:FindFirstChild("AimAssistGUI") then
-            playerGui.AimAssistGUI:Destroy()
+    if input.KeyCode == Enum.KeyCode.Insert then
+        if playerGui:FindFirstChild("UltimateAimAssistGUI") then
+            playerGui.UltimateAimAssistGUI:Destroy()
         else
-            createMainGUI()
+            createUltimateGUI()
         end
     end
 end)
 
--- Sistema de notificações
-local function createNotification(text, color)
-    local notifGui = playerGui:FindFirstChild("NotificationGUI")
-    if not notifGui then
-        notifGui = Instance.new("ScreenGui")
-        notifGui.Name = "NotificationGUI"
-        notifGui.Parent = playerGui
-        notifGui.ResetOnSpawn = false
-    end
-    
-    local notification = Instance.new("Frame")
-    notification.Size = UDim2.new(0, 300, 0, 60)
-    notification.Position = UDim2.new(1, -320, 0, 20 + (#notifGui:GetChildren() - 1) * 70)
-    notification.BackgroundColor3 = color or Color3.fromRGB(40, 40, 55)
-    notification.BorderSizePixel = 0
-    notification.Parent = notifGui
-    
-    local notifCorner = Instance.new("UICorner")
-    notifCorner.CornerRadius = UDim.new(0, 8)
-    notifCorner.Parent = notification
-    
-    local notifText = Instance.new("TextLabel")
-    notifText.Size = UDim2.new(1, -20, 1, 0)
-    notifText.Position = UDim2.new(0, 10, 0, 0)
-    notifText.BackgroundTransparency = 1
-    notifText.Text = text
-    notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notifText.TextScaled = true
-    notifText.Font = Enum.Font.Gotham
-    notifText.TextWrapped = true
-    notifText.Parent = notification
-    
-    -- Animação de entrada
-    notification.Position = UDim2.new(1, 0, 0, 20 + (#notifGui:GetChildren() - 2) * 70)
-    local tweenIn = TweenService:Create(notification, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(1, -320, 0, 20 + (#notifGui:GetChildren() - 2) * 70)
-    })
-    tweenIn:Play()
-    
-    -- Auto-remover após 3 segundos
-    wait(3)
-    local tweenOut = TweenService:Create(notification, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Position = UDim2.new(1, 0, 0, 20 + (#notifGui:GetChildren() - 2) * 70)
-    })
-    tweenOut:Play()
-    tweenOut.Completed:Connect(function()
-        notification:Destroy()
-        
-        -- Reposicionar outras notificações
-        for i, child in ipairs(notifGui:GetChildren()) do
-            if child:IsA("Frame") then
-                local newPos = UDim2.new(1, -320, 0, 20 + (i-1) * 70)
-                TweenService:Create(child, TweenInfo.new(0.2), {Position = newPos}):Play()
-            end
-        end
-    end)
-end
-
--- Sistema de status e feedback
-local statusConnection = nil
-
-local function updateStatus()
-    if statusConnection then
-        statusConnection:Disconnect()
-    end
-    
-    statusConnection = RunService.Heartbeat:Connect(function()
-        local gui = playerGui:FindFirstChild("AimAssistGUI")
-        if not gui then return end
-        
-        local header = gui.MainFrame.Header
-        
-        -- Atualizar cor do header baseado no status
-        if aimAssistConfig.aimBot.enabled and isAiming then
-            header.BackgroundColor3 = Color3.fromRGB(50, 100, 50) -- Verde quando ativo
-        elseif aimAssistConfig.aimBot.enabled then
-            header.BackgroundColor3 = Color3.fromRGB(100, 100, 50) -- Amarelo quando habilitado mas não ativo
-        else
-            header.BackgroundColor3 = Color3.fromRGB(35, 35, 50) -- Padrão
-        end
-    end)
-end
-
--- Validação de configurações
-local function validateConfig()
-    -- Validar se pelo menos uma parte do corpo está selecionada
-    if aimAssistConfig.aimBot.enabled and #aimAssistConfig.aimBot.targetParts == 0 then
-        createNotification("⚠️ Selecione pelo menos uma parte do corpo!", Color3.fromRGB(200, 100, 50))
-        aimAssistConfig.aimBot.targetParts = {"Head"}
-        return false
-    end
-    
-    -- Validar conflitos de configuração
-    if aimAssistConfig.checkWall and aimAssistConfig.autoWall.enabled then
-        createNotification("⚠️ Check Wall e Auto Wall são conflitantes!", Color3.fromRGB(200, 100, 50))
-    end
-    
-    return true
-end
-
--- Sistema de profiles/presets
-local presets = {
-    legit = {
-        aimBot = {enabled = true, mode = "Toggle", targetParts = {"Head"}, key = Enum.KeyCode.E},
-        autoFire = {enabled = false, mode = "Toggle"},
-        autoWall = {enabled = false, mode = "Toggle"},
-        checkWall = true
-    },
-    rage = {
-        aimBot = {enabled = true, mode = "Always", targetParts = {"Head", "Torso"}, key = Enum.KeyCode.E},
-        autoFire = {enabled = true, mode = "Always"},
-        autoWall = {enabled = true, mode = "Always"},
-        checkWall = false
-    },
-    safe = {
-        aimBot = {enabled = true, mode = "Hold", targetParts = {"Torso"}, key = Enum.KeyCode.E},
-        autoFire = {enabled = false, mode = "Toggle"},
-        autoWall = {enabled = false, mode = "Toggle"},
-        checkWall = true
-    }
-}
-
--- Função para aplicar preset
-local function applyPreset(presetName)
-    if presets[presetName] then
-        for key, value in pairs(presets[presetName]) do
-            aimAssistConfig[key] = value
-        end
-        createNotification("✅ Preset '" .. presetName .. "' aplicado!", Color3.fromRGB(50, 200, 50))
-        
-        -- Atualizar GUI se estiver aberta
-        local gui = playerGui:FindFirstChild("AimAssistGUI")
-        if gui then
-            gui:Destroy()
-            createMainGUI()
-        end
-    end
-end
-
--- Comandos de chat para presets
+-- Comandos de chat ÉPICOS
 local function onChatted(message)
     local lowerMessage = string.lower(message)
     
-    if string.find(lowerMessage, "/preset legit") then
-        applyPreset("legit")
-    elseif string.find(lowerMessage, "/preset rage") then
-        applyPreset("rage")
-    elseif string.find(lowerMessage, "/preset safe") then
-        applyPreset("safe")
-    elseif string.find(lowerMessage, "/aimgui") then
-        if playerGui:FindFirstChild("AimAssistGUI") then
-            playerGui.AimAssistGUI:Destroy()
+    if string.find(lowerMessage, "/ultimate") then
+        if playerGui:FindFirstChild("UltimateAimAssistGUI") then
+            playerGui.UltimateAimAssistGUI:Destroy()
         else
-            createMainGUI()
+            createUltimateGUI()
         end
+    elseif string.find(lowerMessage, "/godmode") then
+        aimAssistConfig.aimBot = {
+            enabled = true, mode = "Always", targetParts = {"Head", "Torso"}, 
+            key = Enum.KeyCode.E, smoothness = 1, fov = 500
+        }
+        aimAssistConfig.autoFire.enabled = true
+        aimAssistConfig.autoWall.enabled = true
+        aimAssistConfig.checkWall = false
+        createEpicNotification("🔥 GOD MODE ACTIVATED! 🔥", Color3.fromRGB(255, 100, 100), "👑")
+    elseif string.find(lowerMessage, "/legit") then
+        aimAssistConfig.aimBot = {
+            enabled = true, mode = "Toggle", targetParts = {"Head"}, 
+            key = Enum.KeyCode.E, smoothness = 0.3, fov = 100
+        }
+        aimAssistConfig.autoFire.enabled = false
+        aimAssistConfig.autoWall.enabled = false
+        aimAssistConfig.checkWall = true
+        createEpicNotification("✅ Legit Mode Activated", Color3.fromRGB(100, 255, 100), "🎯")
     end
 end
 
@@ -846,41 +1060,78 @@ if player.Chatted then
     player.Chatted:Connect(onChatted)
 end
 
--- Sistema de segurança anti-detecção
-local function randomizeValues()
-    -- Adiciona pequenas variações aleatórias para evitar detecção
-    wait(math.random(1, 3) / 100) -- Delay aleatório muito pequeno
+-- Inicialização ÉPICA
+print("🚀🚀🚀 ULTIMATE AIM ASSIST LOADED! 🚀🚀🚀")
+print("💫 A GUI MAIS ÉPICA DO UNIVERSO! 💫")
+print("⚡ COMANDOS DISPONÍVEIS:")
+print("   🔹 INSERT - Abrir/Fechar GUI")
+print("   🔹 /ultimate - Toggle GUI via chat")
+print("   🔹 /godmode - Ativar modo DESTRUIÇÃO")
+print("   🔹 /legit - Modo discreto")
+print("🌟 PREPARE-SE PARA DOMINAR! 🌟")
+
+-- Criar GUI automaticamente
+createUltimateGUI()
+
+-- Notificação de inicialização
+wait(1)
+if playerGui:FindFirstChild("UltimateAimAssistGUI") then
+    -- Criar notificação épica de inicialização
+    local welcomeGui = Instance.new("ScreenGui")
+    welcomeGui.Parent = playerGui
+    welcomeGui.ResetOnSpawn = false
+    
+    local welcomeFrame = Instance.new("Frame")
+    welcomeFrame.Size = UDim2.new(0, 600, 0, 200)
+    welcomeFrame.Position = UDim2.new(0.5, -300, 0.5, -100)
+    welcomeFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    welcomeFrame.BackgroundTransparency = 0.3
+    welcomeFrame.BorderSizePixel = 0
+    welcomeFrame.Parent = welcomeGui
+    
+    local welcomeCorner = Instance.new("UICorner")
+    welcomeCorner.CornerRadius = UDim.new(0, 20)
+    welcomeCorner.Parent = welcomeFrame
+    
+    local welcomeText = Instance.new("TextLabel")
+    welcomeText.Size = UDim2.new(1, 0, 1, 0)
+    welcomeText.BackgroundTransparency = 1
+    welcomeText.Text = "🚀 ULTIMATE AIM ASSIST ACTIVATED! 🚀\n💫 PREPARE FOR DOMINATION! 💫"
+    welcomeText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    welcomeText.TextScaled = true
+    welcomeText.Font = Enum.Font.GothamBold
+    welcomeText.Parent = welcomeFrame
+    
+    local textGradient = Instance.new("UIGradient")
+    textGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 100))
+    }
+    textGradient.Parent = welcomeText
+    
+    -- Animação de rotação do gradiente
+    local rotationTween = TweenService:Create(textGradient,
+        TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+        {Rotation = 360}
+    )
+    rotationTween:Play()
+    
+    -- Fade out após 5 segundos
+    wait(5)
+    local fadeOut = TweenService:Create(welcomeFrame,
+        TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {BackgroundTransparency = 1}
+    )
+    local textFade = TweenService:Create(welcomeText,
+        TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {TextTransparency = 1}
+    )
+    
+    fadeOut:Play()
+    textFade:Play()
+    
+    fadeOut.Completed:Connect(function()
+        welcomeGui:Destroy()
+    end)
 end
-
--- Override da função de aim para incluir randomização
-local originalAimAtTarget = aimAtTarget
-aimAtTarget = function(target)
-    randomizeValues()
-    originalAimAtTarget(target)
-end
-
--- Inicialização
-print("🎯 AIM ASSIST LOADED SUCCESSFULLY!")
-print("📋 Comandos disponíveis:")
-print("   • INSERT - Abrir/Fechar GUI")
-print("   • /aimgui - Toggle GUI via chat")
-print("   • /preset legit - Aplicar preset legítimo")
-print("   • /preset rage - Aplicar preset agressivo")
-print("   • /preset safe - Aplicar preset seguro")
-print("✨ Criado para Roblox - Use com responsabilidade!")
-
--- Criar GUI inicialmente
-createMainGUI()
-updateStatus()
-
--- Função de limpeza ao sair
-game.Players.PlayerRemoving:Connect(function(removedPlayer)
-    if removedPlayer == player then
-        if statusConnection then
-            statusConnection:Disconnect()
-        end
-        if aimConnection then
-            aimConnection:Disconnect()
-        end
-    end
-end)
