@@ -90,6 +90,23 @@ local function createMainGUI()
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = header
     
+    -- Botão minimizar
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Name = "MinimizeButton"
+    minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    minimizeButton.Position = UDim2.new(1, -75, 0, 10)
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
+    minimizeButton.Text = "−"
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.TextScaled = true
+    minimizeButton.Font = Enum.Font.GothamBold
+    minimizeButton.BorderSizePixel = 0
+    minimizeButton.Parent = header
+    
+    local minimizeCorner = Instance.new("UICorner")
+    minimizeCorner.CornerRadius = UDim.new(0, 6)
+    minimizeCorner.Parent = minimizeButton
+    
     -- Botão fechar
     local closeButton = Instance.new("TextButton")
     closeButton.Name = "CloseButton"
